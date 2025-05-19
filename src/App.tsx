@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -25,8 +24,7 @@ import DeliveryDashboard from "./pages/delivery/Dashboard";
 // Admin pages
 import AdminLayout from "./components/layouts/AdminLayout";
 import AdminDashboard from "./pages/admin/Dashboard";
-
-const queryClient = new QueryClient();
+import AdminOrders from "./pages/admin/Orders";
 
 // Protected route component
 const ProtectedRoute = ({ 
@@ -103,7 +101,7 @@ const AppRoutes = () => (
     }>
       <Route path="dashboard" element={<AdminDashboard />} />
       <Route path="products" element={<div>Product Management</div>} />
-      <Route path="orders" element={<div>Order Management</div>} />
+      <Route path="orders" element={<AdminOrders />} />
       <Route path="orders/:id" element={<div>Order Details</div>} />
       <Route path="users" element={<div>User Management</div>} />
       <Route path="settings" element={<div>Settings</div>} />
