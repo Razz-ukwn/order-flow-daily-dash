@@ -6,6 +6,9 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth, UserRole } from "./contexts/AuthContext";
 import { DataProvider } from "./contexts/DataContext";
 
+// Create a new QueryClient instance
+const queryClient = new QueryClient();
+
 // Pages
 import Index from "./pages/Index";
 import Login from "./pages/Login";
