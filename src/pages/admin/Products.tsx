@@ -15,11 +15,21 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Search, ShoppingCart, Plus, Check, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import AddProductForm from '@/components/admin/AddProductForm';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 
 const ProductsPage = () => {
   const { products } = useData();
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredProducts, setFilteredProducts] = useState(products);
+  const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const { toast } = useToast();
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -46,6 +56,22 @@ const ProductsPage = () => {
     });
   };
 
+  const handleDeleteProduct = (productId: string) => {
+    toast({
+      title: "Product deleted",
+      description: "The product has been removed successfully.",
+    });
+    // In a real app, we would call an API to delete the product
+  };
+
+  const handleEditProduct = (productId: string) => {
+    toast({
+      title: "Edit product",
+      description: "Edit functionality would open the product form here.",
+    });
+    // In a real app, we would open the edit form with the product data
+  };
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -62,6 +88,10 @@ const ProductsPage = () => {
     }).format(date);
   };
 
+  const refreshProductsList = () => {
+    setFilteredProducts(products);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -69,10 +99,21 @@ const ProductsPage = () => {
           <h1 className="text-2xl font-bold">Product Management</h1>
           <p className="text-gray-500">Manage all products in the system</p>
         </div>
-        <Button className="bg-purple-600 hover:bg-purple-700">
-          <Plus className="mr-2 h-4 w-4" />
-          Add New Product
-        </Button>
+        
+        <Dialog open={isAddProductOpen} onOpenChange={setIsAddProductOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-purple-600 hover:bg-purple-700">
+              <Plus className="mr-2 h-4 w-4" />
+              Add New Product
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <AddProductForm 
+              onClose={() => setIsAddProductOpen(false)}
+              onSuccess={refreshProductsList} 
+            />
+          </DialogContent>
+        </Dialog>
       </div>
 
       <Card>
@@ -108,7 +149,15 @@ const ProductsPage = () => {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="h-10 w-10 rounded-md bg-gray-100 border flex items-center justify-center">
-                          <ShoppingCart className="h-5 w-5 text-gray-500" />
+                          {product.image_url ? (
+                            <img 
+                              src={product.image_url} 
+                              alt={product.name}
+                              className="h-10 w-10 object-cover rounded-md"
+                            />
+                          ) : (
+                            <ShoppingCart className="h-5 w-5 text-gray-500" />
+                          )}
                         </div>
                         <div>
                           <div className="font-medium">{product.name}</div>
@@ -136,8 +185,21 @@ const ProductsPage = () => {
                     <TableCell>{formatDate(product.created_at)}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="outline" size="sm">Edit</Button>
-                        <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">Delete</Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleEditProduct(product.id)}
+                        >
+                          Edit
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-red-600 hover:text-red-700"
+                          onClick={() => handleDeleteProduct(product.id)}
+                        >
+                          Delete
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>

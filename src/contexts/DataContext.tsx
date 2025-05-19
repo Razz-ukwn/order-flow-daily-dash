@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth, User } from './AuthContext';
 
@@ -16,6 +15,7 @@ export interface Product {
 // Order status and payment status types
 export type OrderStatus = 'pending' | 'processing' | 'assigned' | 'delivered' | 'cancelled';
 export type PaymentStatus = 'paid' | 'pending';
+export type PaymentMethod = 'cash' | 'upi' | 'credit_card' | 'none';
 
 // Order item type
 export interface OrderItem {
@@ -37,6 +37,7 @@ export interface Order {
   total_amount: number;
   status: OrderStatus;
   payment_status: PaymentStatus;
+  payment_method?: PaymentMethod;
   created_at: string;
   items: OrderItem[];
   delivery?: Delivery;
@@ -126,7 +127,7 @@ const MOCK_PRODUCTS: Product[] = [
   },
 ];
 
-// Initial mock orders
+// Updated initial mock orders with payment methods
 const INITIAL_MOCK_ORDERS: Order[] = [
   {
     id: '1',
@@ -136,6 +137,7 @@ const INITIAL_MOCK_ORDERS: Order[] = [
     total_amount: 12.97,
     status: 'delivered',
     payment_status: 'paid',
+    payment_method: 'cash',
     created_at: '2023-05-15T09:30:00Z',
     items: [
       {
@@ -171,6 +173,7 @@ const INITIAL_MOCK_ORDERS: Order[] = [
     total_amount: 18.97,
     status: 'assigned',
     payment_status: 'pending',
+    payment_method: 'none',
     created_at: '2023-05-16T10:15:00Z',
     items: [
       {
@@ -204,6 +207,107 @@ const INITIAL_MOCK_ORDERS: Order[] = [
       agent_id: '2', // delivery agent
       assigned_at: '2023-05-16T11:00:00Z',
       status: 'in_progress',
+    },
+  },
+  // Add today's orders with different payment methods for demonstration
+  {
+    id: '3',
+    user_id: '4', // customer
+    order_date: new Date().toISOString(),
+    total_amount: 15.99,
+    status: 'delivered',
+    payment_status: 'paid',
+    payment_method: 'cash',
+    created_at: new Date().toISOString(),
+    items: [
+      {
+        id: '301',
+        order_id: '3',
+        product_id: '1',
+        product: MOCK_PRODUCTS[0],
+        quantity: 2,
+        price_at_order: 2.99,
+      },
+      {
+        id: '302',
+        order_id: '3',
+        product_id: '5',
+        product: MOCK_PRODUCTS[4],
+        quantity: 2,
+        price_at_order: 3.99,
+      },
+    ],
+    delivery: {
+      id: '503',
+      order_id: '3',
+      agent_id: '2', // delivery agent
+      assigned_at: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
+      delivered_at: new Date().toISOString(),
+      status: 'delivered',
+    },
+  },
+  {
+    id: '4',
+    user_id: '5', // customer
+    order_date: new Date().toISOString(),
+    total_amount: 23.99,
+    status: 'delivered',
+    payment_status: 'paid',
+    payment_method: 'upi',
+    created_at: new Date().toISOString(),
+    items: [
+      {
+        id: '401',
+        order_id: '4',
+        product_id: '3',
+        product: MOCK_PRODUCTS[2],
+        quantity: 3,
+        price_at_order: 3.29,
+      },
+      {
+        id: '402',
+        order_id: '4',
+        product_id: '6',
+        product: MOCK_PRODUCTS[5],
+        quantity: 3,
+        price_at_order: 4.99,
+      },
+    ],
+    delivery: {
+      id: '504',
+      order_id: '4',
+      agent_id: '2', // delivery agent
+      assigned_at: new Date(Date.now() - 7200000).toISOString(), // 2 hours ago
+      delivered_at: new Date(Date.now() - 1800000).toISOString(), // 30 min ago
+      status: 'delivered',
+    },
+  },
+  {
+    id: '5',
+    user_id: '3', // customer
+    order_date: new Date().toISOString(),
+    total_amount: 9.98,
+    status: 'delivered',
+    payment_status: 'pending',
+    payment_method: 'none',
+    created_at: new Date().toISOString(),
+    items: [
+      {
+        id: '501',
+        order_id: '5',
+        product_id: '2',
+        product: MOCK_PRODUCTS[1],
+        quantity: 2,
+        price_at_order: 4.49,
+      },
+    ],
+    delivery: {
+      id: '505',
+      order_id: '5',
+      agent_id: '2', // delivery agent
+      assigned_at: new Date(Date.now() - 5400000).toISOString(), // 1.5 hours ago
+      delivered_at: new Date(Date.now() - 900000).toISOString(), // 15 min ago
+      status: 'delivered',
     },
   },
 ];

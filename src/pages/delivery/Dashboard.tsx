@@ -6,6 +6,7 @@ import { useData } from '@/contexts/DataContext';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Package, CheckCircle, Clock } from 'lucide-react';
+import EarningsCard from '@/components/delivery/EarningsCard';
 
 const DeliveryDashboard = () => {
   const { user } = useAuth();
@@ -27,9 +28,6 @@ const DeliveryDashboard = () => {
   const todayDeliveries = assignedOrders.filter(order => 
     new Date(order.created_at) >= todayStart
   );
-  
-  // Total earnings (simplified calculation)
-  const estimatedEarnings = deliveredOrders.length * 5; // Assumption: $5 per delivery
   
   return (
     <div className="space-y-6">
@@ -66,16 +64,9 @@ const DeliveryDashboard = () => {
             </p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Estimated Earnings</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${estimatedEarnings.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">Based on completed deliveries</p>
-          </CardContent>
-        </Card>
+        
+        {/* Updated component for earnings */}
+        <EarningsCard agentId={user.id} />
       </div>
       
       {/* Pending Deliveries */}
@@ -107,6 +98,12 @@ const DeliveryDashboard = () => {
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Items:</span>
                     <span className="font-semibold">{order.items.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Payment:</span>
+                    <span className={`font-semibold ${order.payment_status === 'paid' ? 'text-green-600' : 'text-amber-600'}`}>
+                      {order.payment_status === 'paid' ? 'Paid' : 'Pending'}
+                    </span>
                   </div>
                   <div className="pt-2">
                     <p className="text-sm font-medium">Customer:</p>
