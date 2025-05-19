@@ -30,6 +30,10 @@ import DeliveryDashboard from "./pages/delivery/Dashboard";
 import AdminLayout from "./components/layouts/AdminLayout";
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminOrders from "./pages/admin/Orders";
+import AdminProducts from "./pages/admin/Products";
+import AdminUsers from "./pages/admin/Users";
+import AdminSettings from "./pages/admin/Settings";
+import AdminProfile from "./pages/admin/Profile";
 
 // Protected route component
 const ProtectedRoute = ({ 
@@ -105,12 +109,12 @@ const AppRoutes = () => (
       </ProtectedRoute>
     }>
       <Route path="dashboard" element={<AdminDashboard />} />
-      <Route path="products" element={<div>Product Management</div>} />
+      <Route path="products" element={<AdminProducts />} />
       <Route path="orders" element={<AdminOrders />} />
       <Route path="orders/:id" element={<div>Order Details</div>} />
-      <Route path="users" element={<div>User Management</div>} />
-      <Route path="settings" element={<div>Settings</div>} />
-      <Route path="profile" element={<div>Profile</div>} />
+      <Route path="users" element={<AdminUsers />} />
+      <Route path="settings" element={<AdminSettings />} />
+      <Route path="profile" element={<AdminProfile />} />
     </Route>
     
     <Route path="*" element={<NotFound />} />
