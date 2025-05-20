@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from "@/components/ui/use-toast";
@@ -42,10 +41,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Initialize auth state from Supabase
   useEffect(() => {
+    console.log("AuthProvider initializing");
+    
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, currentSession) => {
-        console.log("Auth state changed:", event);
+        console.log("Auth state changed:", event, !!currentSession);
         setSession(currentSession);
         
         if (currentSession?.user) {
@@ -105,9 +106,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         
         // Handle redirections if on auth pages
         const currentPath = location.pathname;
-        const isAuthPath = currentPath === '/login' || currentPath === '/register' || currentPath === '/';
-        
-        if (isAuthPath) {
+        if (currentPath === '/login' || currentPath === '/register' || currentPath === '/') {
+          console.log("User is on auth page, redirecting to dashboard");
           redirectBasedOnRole(userData.role);
         }
       }
@@ -131,6 +131,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         navigate('/delivery/dashboard', { replace: true });
         break;
       case 'customer':
+      default:
         navigate('/dashboard', { replace: true });
         break;
     }
@@ -154,7 +155,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           variant: "destructive"
         });
         setIsLoading(false);
-        return;
+        throw error;
       }
       
       console.log("Login successful, session:", data.session ? "exists" : "missing");
@@ -164,7 +165,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         description: `Welcome back!`,
       });
       
-      // Redirection will happen via fetchUserProfile when session changes
+      // Session change will trigger onAuthStateChange
     } catch (error) {
       console.error('Login error:', error);
       toast({
@@ -173,6 +174,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         variant: "destructive"
       });
       setIsLoading(false);
+      throw error;
     }
   };
 
@@ -200,7 +202,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           variant: "destructive"
         });
         setIsLoading(false);
-        return;
+        throw error;
       }
       
       toast({
@@ -208,7 +210,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         description: "Your account has been created",
       });
       
-      // Redirection will happen via fetchUserProfile when session changes
+      // Session change will trigger onAuthStateChange
     } catch (error) {
       console.error('Registration error:', error);
       toast({
@@ -217,6 +219,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         variant: "destructive"
       });
       setIsLoading(false);
+      throw error;
     }
   };
 

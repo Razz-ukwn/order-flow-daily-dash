@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,27 +15,24 @@ const Login = () => {
   const { login, isLoading, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect if already authenticated
+  // Handle redirection when auth state changes
   useEffect(() => {
     if (isAuthenticated && user) {
-      console.log("User is authenticated, redirecting based on role:", user.role);
+      console.log("Auth state changed in Login component:", isAuthenticated, user);
       
-      // Add a short delay to ensure the user data is fully loaded
-      setTimeout(() => {
-        switch(user.role) {
-          case 'admin':
-            navigate('/admin/dashboard', { replace: true });
-            break;
-          case 'delivery_agent':
-            navigate('/delivery/dashboard', { replace: true });
-            break;
-          case 'customer':
-            navigate('/dashboard', { replace: true });
-            break;
-          default:
-            navigate('/dashboard', { replace: true });
-        }
-      }, 100);
+      // Redirect based on user role
+      switch(user.role) {
+        case 'admin':
+          navigate('/admin/dashboard', { replace: true });
+          break;
+        case 'delivery_agent':
+          navigate('/delivery/dashboard', { replace: true });
+          break;
+        case 'customer':
+        default:
+          navigate('/dashboard', { replace: true });
+          break;
+      }
     }
   }, [isAuthenticated, user, navigate]);
 
@@ -55,6 +51,7 @@ const Login = () => {
     }
     
     try {
+      console.log("Attempting login with:", email);
       await login(email, password);
     } catch (error) {
       console.error("Login error:", error);
