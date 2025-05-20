@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +16,28 @@ const Register = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [generalError, setGeneralError] = useState('');
-  const { register, isLoading } = useAuth();
+  const { register, isLoading, isAuthenticated, user } = useAuth();
+  const navigate = useNavigate();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      console.log("User is authenticated, redirecting based on role:", user.role);
+      switch(user.role) {
+        case 'admin':
+          navigate('/admin/dashboard');
+          break;
+        case 'delivery_agent':
+          navigate('/delivery/dashboard');
+          break;
+        case 'customer':
+          navigate('/dashboard');
+          break;
+        default:
+          navigate('/dashboard');
+      }
+    }
+  }, [isAuthenticated, user, navigate]);
 
   const validatePassword = () => {
     if (password !== confirmPassword) {

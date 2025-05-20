@@ -1,10 +1,9 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
-import { Database } from '@/integrations/supabase/types';
 
 // Define user roles
 export type UserRole = 'customer' | 'delivery_agent' | 'admin';
@@ -39,6 +38,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Initialize auth state from Supabase
   useEffect(() => {
@@ -47,7 +47,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       (event, currentSession) => {
         setSession(currentSession);
         if (currentSession?.user) {
-          fetchUserProfile(currentSession.user);
+          // Use setTimeout to avoid recursive auth issues
+          setTimeout(() => {
+            fetchUserProfile(currentSession.user);
+          }, 0);
         } else {
           setUser(null);
         }
@@ -59,8 +62,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setSession(currentSession);
       if (currentSession?.user) {
         fetchUserProfile(currentSession.user);
+      } else {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -80,20 +84,49 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.error('Error fetching user profile:', error);
         setUser(null);
       } else if (profile) {
-        setUser({
+        // Create user object from profile data
+        const userData: User = {
           id: profile.id,
           name: profile.name || '',
           email: supabaseUser.email || '',
           role: profile.role as UserRole || 'customer',
           phone: profile.phone || undefined,
           address: profile.address || undefined
-        });
+        };
+        
+        setUser(userData);
+        
+        // Handle redirects based on user role
+        redirectBasedOnRole(userData.role);
       }
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
       setUser(null);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Redirect based on user role
+  const redirectBasedOnRole = (role: UserRole) => {
+    // Don't redirect if we're already on the correct dashboard
+    const currentPath = location.pathname;
+    const isAuthPath = currentPath === '/login' || currentPath === '/register' || currentPath === '/';
+    
+    // Only redirect if on auth pages or root
+    if (isAuthPath) {
+      console.log(`Redirecting user with role: ${role}`);
+      switch(role) {
+        case 'admin':
+          navigate('/admin/dashboard');
+          break;
+        case 'delivery_agent':
+          navigate('/delivery/dashboard');
+          break;
+        case 'customer':
+          navigate('/dashboard');
+          break;
+      }
     }
   };
 
@@ -113,6 +146,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           description: error.message,
           variant: "destructive"
         });
+        setIsLoading(false);
         return;
       }
       
@@ -121,14 +155,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         description: `Welcome back!`,
       });
       
-      // Redirect based on role will happen via useEffect when user is set
+      // Redirection will happen via fetchUserProfile when session changes
     } catch (error) {
+      console.error('Login error:', error);
       toast({
         title: "Login error",
         description: "An unexpected error occurred",
         variant: "destructive"
       });
-    } finally {
       setIsLoading(false);
     }
   };
@@ -156,6 +190,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           description: error.message,
           variant: "destructive"
         });
+        setIsLoading(false);
         return;
       }
       
@@ -164,7 +199,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         description: "Your account has been created",
       });
       
-      // Redirect will happen via useEffect when user is set
+      // Redirection will happen via fetchUserProfile when session changes
     } catch (error) {
       console.error('Registration error:', error);
       toast({
@@ -172,7 +207,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         description: "An unexpected error occurred",
         variant: "destructive"
       });
-    } finally {
       setIsLoading(false);
     }
   };
@@ -197,23 +231,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
     }
   };
-
-  // Redirect user based on role when user changes
-  useEffect(() => {
-    if (user && !isLoading) {
-      switch(user.role) {
-        case 'admin':
-          navigate('/admin/dashboard');
-          break;
-        case 'delivery_agent':
-          navigate('/delivery/dashboard');
-          break;
-        case 'customer':
-          navigate('/dashboard');
-          break;
-      }
-    }
-  }, [user, isLoading, navigate]);
 
   return (
     <AuthContext.Provider 
