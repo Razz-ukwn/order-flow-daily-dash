@@ -2,6 +2,9 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Session, User as SupabaseUser } from '@supabase/supabase-js';
+import { Database } from '@/integrations/supabase/types';
 
 // Define user roles
 export type UserRole = 'customer' | 'delivery_agent' | 'admin';
@@ -29,90 +32,96 @@ interface AuthContextType {
 // Create context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock user data for demo purposes
-const MOCK_USERS: User[] = [
-  {
-    id: '1',
-    name: 'Admin User',
-    email: 'admin@example.com',
-    role: 'admin',
-    phone: '123-456-7890',
-    address: '123 Admin St'
-  },
-  {
-    id: '2',
-    name: 'Delivery Agent',
-    email: 'agent@example.com',
-    role: 'delivery_agent',
-    phone: '234-567-8901',
-    address: '456 Delivery Ave'
-  },
-  {
-    id: '3',
-    name: 'Customer User',
-    email: 'customer@example.com',
-    role: 'customer',
-    phone: '345-678-9012',
-    address: '789 Customer Blvd'
-  }
-];
-
 // Provider component
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  // Initialize auth state from Supabase
   useEffect(() => {
-    // Check for saved user in localStorage
-    const savedUser = localStorage.getItem('user');
-    
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    
-    setIsLoading(false);
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, currentSession) => {
+        setSession(currentSession);
+        if (currentSession?.user) {
+          fetchUserProfile(currentSession.user);
+        } else {
+          setUser(null);
+        }
+      }
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+      if (currentSession?.user) {
+        fetchUserProfile(currentSession.user);
+      }
+      setIsLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
+
+  // Fetch user profile data from the profiles table
+  const fetchUserProfile = async (supabaseUser: SupabaseUser) => {
+    setIsLoading(true);
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', supabaseUser.id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user profile:', error);
+        setUser(null);
+      } else if (profile) {
+        setUser({
+          id: profile.id,
+          name: profile.name || '',
+          email: supabaseUser.email || '',
+          role: profile.role as UserRole || 'customer',
+          phone: profile.phone || undefined,
+          address: profile.address || undefined
+        });
+      }
+    } catch (error) {
+      console.error('Error in fetchUserProfile:', error);
+      setUser(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Login function
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
       
-      // Find user by email (for demo)
-      const foundUser = MOCK_USERS.find(u => u.email === email);
-      
-      if (foundUser && password === 'password') { // Simple password check for demo
-        setUser(foundUser);
-        localStorage.setItem('user', JSON.stringify(foundUser));
-        toast({
-          title: "Login successful",
-          description: `Welcome back, ${foundUser.name}!`,
-        });
-        
-        // Redirect based on role
-        switch(foundUser.role) {
-          case 'admin':
-            navigate('/admin/dashboard');
-            break;
-          case 'delivery_agent':
-            navigate('/delivery/dashboard');
-            break;
-          case 'customer':
-            navigate('/dashboard');
-            break;
-        }
-      } else {
+      if (error) {
         toast({
           title: "Login failed",
-          description: "Invalid email or password",
+          description: error.message,
           variant: "destructive"
         });
+        return;
       }
+      
+      toast({
+        title: "Login successful",
+        description: `Welcome back!`,
+      });
+      
+      // Redirect based on role will happen via useEffect when user is set
     } catch (error) {
       toast({
         title: "Login error",
@@ -129,39 +138,35 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsLoading(true);
     
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Register user with Supabase Auth
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name: name,
+            role: 'customer' // Default role
+          }
+        }
+      });
       
-      // Check if email already exists (for demo)
-      if (MOCK_USERS.some(u => u.email === email)) {
+      if (error) {
         toast({
           title: "Registration failed",
-          description: "Email already in use",
+          description: error.message,
           variant: "destructive"
         });
         return;
       }
-      
-      // Create new user (for demo)
-      const newUser: User = {
-        id: String(MOCK_USERS.length + 1),
-        name,
-        email,
-        role: 'customer', // Default role
-      };
-      
-      // In a real app, you would save this to your backend
-      // For demo, we'll just set it as the current user
-      setUser(newUser);
-      localStorage.setItem('user', JSON.stringify(newUser));
       
       toast({
         title: "Registration successful",
         description: "Your account has been created",
       });
       
-      navigate('/dashboard'); // Redirect to customer dashboard
+      // Redirect will happen via useEffect when user is set
     } catch (error) {
+      console.error('Registration error:', error);
       toast({
         title: "Registration error",
         description: "An unexpected error occurred",
@@ -173,15 +178,42 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   // Logout function
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('user');
-    toast({
-      title: "Logged out",
-      description: "You have been successfully logged out",
-    });
-    navigate('/login');
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      setSession(null);
+      toast({
+        title: "Logged out",
+        description: "You have been successfully logged out",
+      });
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast({
+        title: "Logout failed",
+        description: "Failed to log out",
+        variant: "destructive"
+      });
+    }
   };
+
+  // Redirect user based on role when user changes
+  useEffect(() => {
+    if (user && !isLoading) {
+      switch(user.role) {
+        case 'admin':
+          navigate('/admin/dashboard');
+          break;
+        case 'delivery_agent':
+          navigate('/delivery/dashboard');
+          break;
+        case 'customer':
+          navigate('/dashboard');
+          break;
+      }
+    }
+  }, [user, isLoading, navigate]);
 
   return (
     <AuthContext.Provider 

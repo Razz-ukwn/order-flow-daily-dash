@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const Register = () => {
   const [name, setName] = useState('');
@@ -13,6 +15,7 @@ const Register = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [generalError, setGeneralError] = useState('');
   const { register, isLoading } = useAuth();
 
   const validatePassword = () => {
@@ -30,8 +33,26 @@ const Register = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setGeneralError('');
+    
     if (!validatePassword()) return;
-    await register(name, email, password);
+    
+    if (!name.trim()) {
+      setGeneralError('Please enter your name');
+      return;
+    }
+    
+    if (!email.trim()) {
+      setGeneralError('Please enter your email');
+      return;
+    }
+    
+    try {
+      await register(name, email, password);
+    } catch (error) {
+      console.error("Registration error:", error);
+      setGeneralError('Failed to register. Please try again.');
+    }
   };
 
   return (
@@ -50,6 +71,13 @@ const Register = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {generalError && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{generalError}</AlertDescription>
+              </Alert>
+            )}
+            
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Full Name</Label>
