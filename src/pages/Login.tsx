@@ -20,19 +20,23 @@ const Login = () => {
   useEffect(() => {
     if (isAuthenticated && user) {
       console.log("User is authenticated, redirecting based on role:", user.role);
-      switch(user.role) {
-        case 'admin':
-          navigate('/admin/dashboard');
-          break;
-        case 'delivery_agent':
-          navigate('/delivery/dashboard');
-          break;
-        case 'customer':
-          navigate('/dashboard');
-          break;
-        default:
-          navigate('/dashboard');
-      }
+      
+      // Add a short delay to ensure the user data is fully loaded
+      setTimeout(() => {
+        switch(user.role) {
+          case 'admin':
+            navigate('/admin/dashboard', { replace: true });
+            break;
+          case 'delivery_agent':
+            navigate('/delivery/dashboard', { replace: true });
+            break;
+          case 'customer':
+            navigate('/dashboard', { replace: true });
+            break;
+          default:
+            navigate('/dashboard', { replace: true });
+        }
+      }, 100);
     }
   }, [isAuthenticated, user, navigate]);
 

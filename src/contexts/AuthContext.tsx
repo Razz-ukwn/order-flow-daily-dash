@@ -42,10 +42,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Initialize auth state from Supabase
   useEffect(() => {
-    // Set up auth state listener
+    // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, currentSession) => {
+        console.log("Auth state changed:", event);
         setSession(currentSession);
+        
         if (currentSession?.user) {
           // Use setTimeout to avoid recursive auth issues
           setTimeout(() => {
@@ -53,13 +55,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           }, 0);
         } else {
           setUser(null);
+          setIsLoading(false);
         }
       }
     );
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      console.log("Got existing session:", currentSession ? "yes" : "no");
       setSession(currentSession);
+      
       if (currentSession?.user) {
         fetchUserProfile(currentSession.user);
       } else {
@@ -74,6 +79,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const fetchUserProfile = async (supabaseUser: SupabaseUser) => {
     setIsLoading(true);
     try {
+      console.log("Fetching user profile for ID:", supabaseUser.id);
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
@@ -94,10 +100,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           address: profile.address || undefined
         };
         
+        console.log("User profile loaded:", userData);
         setUser(userData);
         
-        // Handle redirects based on user role
-        redirectBasedOnRole(userData.role);
+        // Handle redirections if on auth pages
+        const currentPath = location.pathname;
+        const isAuthPath = currentPath === '/login' || currentPath === '/register' || currentPath === '/';
+        
+        if (isAuthPath) {
+          redirectBasedOnRole(userData.role);
+        }
       }
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
@@ -109,24 +121,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Redirect based on user role
   const redirectBasedOnRole = (role: UserRole) => {
-    // Don't redirect if we're already on the correct dashboard
-    const currentPath = location.pathname;
-    const isAuthPath = currentPath === '/login' || currentPath === '/register' || currentPath === '/';
+    console.log(`Redirecting user with role: ${role}`);
     
-    // Only redirect if on auth pages or root
-    if (isAuthPath) {
-      console.log(`Redirecting user with role: ${role}`);
-      switch(role) {
-        case 'admin':
-          navigate('/admin/dashboard');
-          break;
-        case 'delivery_agent':
-          navigate('/delivery/dashboard');
-          break;
-        case 'customer':
-          navigate('/dashboard');
-          break;
-      }
+    switch(role) {
+      case 'admin':
+        navigate('/admin/dashboard', { replace: true });
+        break;
+      case 'delivery_agent':
+        navigate('/delivery/dashboard', { replace: true });
+        break;
+      case 'customer':
+        navigate('/dashboard', { replace: true });
+        break;
     }
   };
 
@@ -141,6 +147,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       });
       
       if (error) {
+        console.error("Login error:", error.message);
         toast({
           title: "Login failed",
           description: error.message,
@@ -149,6 +156,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setIsLoading(false);
         return;
       }
+      
+      console.log("Login successful, session:", data.session ? "exists" : "missing");
       
       toast({
         title: "Login successful",
@@ -221,7 +230,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         title: "Logged out",
         description: "You have been successfully logged out",
       });
-      navigate('/login');
+      navigate('/login', { replace: true });
     } catch (error) {
       console.error('Logout error:', error);
       toast({
