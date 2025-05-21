@@ -36,7 +36,21 @@ export interface OrderItem {
   product?: Product;
 }
 
-// Order type
+// Delivery type - updated to match both database fields and code usage
+export interface Delivery {
+  id: string;
+  order_id: string;
+  agent_id: string; // This maps to delivery_agent_id in database
+  status: 'pending' | 'in_progress' | 'delivered' | 'failed';
+  assigned_at: string; // This is inferred from created_at
+  delivered_at?: string; // Same as actual_delivery_time
+  notes?: string;
+  agent?: User;
+  created_at: string;
+  updated_at: string;
+}
+
+// Order type - adding order_date property for compatibility
 export interface Order {
   id: string;
   customer_id: string;
@@ -50,27 +64,9 @@ export interface Order {
   notes: string;
   created_at: string;
   updated_at: string;
-  delivery?: {
-    id: string;
-    order_id: string;
-    agent_id: string;
-    status: 'pending' | 'in_progress' | 'delivered' | 'failed';
-    assigned_at: string;
-  };
-}
-
-// Delivery type
-export interface Delivery {
-  id: string;
-  order_id: string;
-  agent_id: string;
-  agent?: User;
-  assigned_at: string;
-  delivered_at?: string;
-  status: 'pending' | 'in_progress' | 'delivered' | 'failed';
-  notes?: string;
-  created_at: string;
-  updated_at: string;
+  order_date?: string; // Added for compatibility, maps to created_at
+  route?: string; // Added for compatibility in admin pages
+  delivery?: Delivery;
 }
 
 // Data context type
@@ -166,26 +162,40 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       if (error) throw error;
 
-      const orderData: Order[] = (data || []).map(order => ({
-        ...order,
-        customer_id: order.user_id, // Map user_id to customer_id for compatibility
-        payment_method: order.payment_method as PaymentMethod,
-        notes: order.notes || "",
-        status: order.status as OrderStatus,
-        payment_status: order.payment_status as PaymentStatus,
-        items: (order.items || []).map(item => ({
-          ...item,
-          price_at_order: item.price_at_time || 0,
-          product: item.product ? {
-            ...item.product,
-            category: item.product.category || null,
-            stock_quantity: item.product.stock_quantity || null,
-            track_inventory: Boolean(item.product.track_inventory),
-            tags: Array.isArray(item.product.tags) ? item.product.tags : []
+      const orderData: Order[] = (data || []).map(order => {
+        // Calculate the order_date from created_at for compatibility
+        const orderDate = order.created_at ? new Date(order.created_at).toISOString().split('T')[0] : '';
+        
+        return {
+          ...order,
+          customer_id: order.user_id, // Map user_id to customer_id for compatibility
+          payment_method: order.payment_method as PaymentMethod,
+          notes: order.notes || "",
+          status: order.status as OrderStatus,
+          payment_status: order.payment_status as PaymentStatus,
+          order_date: orderDate, // Add order_date property
+          route: '', // Add empty route property
+          items: (order.items || []).map(item => ({
+            ...item,
+            price_at_order: item.price_at_time || 0,
+            product: item.product ? {
+              ...item.product,
+              category: item.product.category || null,
+              stock_quantity: item.product.stock_quantity || null,
+              track_inventory: Boolean(item.product.track_inventory),
+              tags: Array.isArray(item.product.tags) ? item.product.tags : []
+            } : undefined
+          })),
+          delivery: order.delivery?.[0] ? {
+            ...order.delivery[0],
+            agent_id: order.delivery[0].delivery_agent_id || '',
+            assigned_at: order.delivery[0].created_at || new Date().toISOString(),
+            status: (order.delivery[0].status || 'pending') as 'pending' | 'in_progress' | 'delivered' | 'failed',
+            delivered_at: order.delivery[0].actual_delivery_time,
+            notes: order.delivery[0].notes || ''
           } : undefined
-        })),
-        delivery: order.delivery?.[0]
-      }));
+        };
+      });
 
       setOrders(orderData);
     } catch (error) {
@@ -271,19 +281,23 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Refresh orders list
       await fetchOrders();
 
-      // Return the complete order with items
+      // Create a complete order object with the expected shape
+      const orderDate = new Date().toISOString().split('T')[0];
+      
       const newOrder: Order = {
         ...order,
         customer_id: order.user_id,
         payment_method: order.payment_method as PaymentMethod,
         payment_status: order.payment_status as PaymentStatus,
         status: order.status as OrderStatus,
+        notes: order.notes || "",
+        order_date: orderDate,
+        route: '',
         items: orderData.items.map(item => ({
           ...item,
           order_id: order.id,
           created_at: new Date().toISOString()
-        })),
-        notes: order.notes || ""
+        }))
       };
       
       return newOrder;
@@ -318,7 +332,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .update({ 
           status,
           notes,
-          delivered_at: status === 'delivered' ? new Date().toISOString() : null
+          actual_delivery_time: status === 'delivered' ? new Date().toISOString() : null
         })
         .eq('id', deliveryId);
 
@@ -337,9 +351,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .from('deliveries')
         .insert([{
           order_id: orderId,
-          agent_id: agentId,
+          delivery_agent_id: agentId, // Use delivery_agent_id instead of agent_id
           status: 'pending',
-          assigned_at: new Date().toISOString()
+          assigned_at: new Date().toISOString(),
+          created_at: new Date().toISOString()
         }]);
 
       if (error) throw error;

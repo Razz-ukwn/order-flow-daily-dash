@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +18,7 @@ export interface User {
   profile_pic?: string;
   profile_completed: boolean;
   created_at: string;
+  address?: string;
 }
 
 // Auth context type
@@ -27,6 +27,7 @@ interface AuthContextType {
   loading: boolean;
   error: string | null;
   isAuthenticated: boolean;
+  isLoading: boolean; // Added this property to match usage in ProtectedRoute
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -146,7 +147,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         location: profile.location,
         profile_pic: profile.profile_pic,
         profile_completed: profile.profile_completed,
-        created_at: profile.created_at
+        created_at: profile.created_at,
+        address: profile.address
       };
 
       console.log("Setting user data:", userData);
@@ -338,6 +340,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         loading: isLoading, 
         error,
         isAuthenticated: !!user,
+        isLoading, // Make sure isLoading is passed to the context
         login, 
         register, 
         logout, 

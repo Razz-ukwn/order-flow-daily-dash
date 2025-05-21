@@ -62,19 +62,19 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
 
       if (data) {
-        // Map database column names to our interface properties
+        // Map database column names (lowercase) to our interface properties (camelCase)
         setSettings({
-          storeName: data.storeName || defaultSettings.storeName,
-          storeDescription: data.storeDescription || defaultSettings.storeDescription,
-          contactEmail: data.contactEmail || defaultSettings.contactEmail,
-          contactPhone: data.contactPhone || defaultSettings.contactPhone,
-          enableOrderNotifications: data.enableOrderNotifications ?? defaultSettings.enableOrderNotifications,
-          enableSMS: data.enableSMS ?? defaultSettings.enableSMS,
-          deliveryRadius: data.deliveryRadius || defaultSettings.deliveryRadius,
-          minOrderAmount: data.minOrderAmount || defaultSettings.minOrderAmount,
-          deliveryFee: data.deliveryFee || defaultSettings.deliveryFee,
-          freeDeliveryThreshold: data.freeDeliveryThreshold || defaultSettings.freeDeliveryThreshold,
-          enableDeliveryTracking: data.enableDeliveryTracking ?? defaultSettings.enableDeliveryTracking,
+          storeName: data.storename || defaultSettings.storeName,
+          storeDescription: data.storedescription || defaultSettings.storeDescription,
+          contactEmail: data.contactemail || defaultSettings.contactEmail,
+          contactPhone: data.contactphone || defaultSettings.contactPhone,
+          enableOrderNotifications: data.enableordernotifications ?? defaultSettings.enableOrderNotifications,
+          enableSMS: data.enablesms ?? defaultSettings.enableSMS,
+          deliveryRadius: data.deliveryradius || defaultSettings.deliveryRadius,
+          minOrderAmount: data.minorderamount || defaultSettings.minOrderAmount,
+          deliveryFee: data.deliveryfee || defaultSettings.deliveryFee,
+          freeDeliveryThreshold: data.freedeliverythreshold || defaultSettings.freeDeliveryThreshold,
+          enableDeliveryTracking: data.enabledeliverytracking ?? defaultSettings.enableDeliveryTracking,
         });
       }
     } catch (error) {
@@ -86,9 +86,24 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const updateSettings = async (newSettings: Partial<Settings>) => {
     try {
+      // Convert our camelCase property names to database lowercase column names
+      const dbSettings: Record<string, any> = {};
+      
+      if (newSettings.storeName !== undefined) dbSettings.storename = newSettings.storeName;
+      if (newSettings.storeDescription !== undefined) dbSettings.storedescription = newSettings.storeDescription;
+      if (newSettings.contactEmail !== undefined) dbSettings.contactemail = newSettings.contactEmail;
+      if (newSettings.contactPhone !== undefined) dbSettings.contactphone = newSettings.contactPhone;
+      if (newSettings.enableOrderNotifications !== undefined) dbSettings.enableordernotifications = newSettings.enableOrderNotifications;
+      if (newSettings.enableSMS !== undefined) dbSettings.enablesms = newSettings.enableSMS;
+      if (newSettings.deliveryRadius !== undefined) dbSettings.deliveryradius = newSettings.deliveryRadius;
+      if (newSettings.minOrderAmount !== undefined) dbSettings.minorderamount = newSettings.minOrderAmount;
+      if (newSettings.deliveryFee !== undefined) dbSettings.deliveryfee = newSettings.deliveryFee;
+      if (newSettings.freeDeliveryThreshold !== undefined) dbSettings.freedeliverythreshold = newSettings.freeDeliveryThreshold;
+      if (newSettings.enableDeliveryTracking !== undefined) dbSettings.enabledeliverytracking = newSettings.enableDeliveryTracking;
+      
       const { error } = await supabase
         .from('settings')
-        .update(newSettings)
+        .update(dbSettings)
         .eq('id', 1);
 
       if (error) {
