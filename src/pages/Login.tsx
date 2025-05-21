@@ -28,18 +28,26 @@ export default function Login() {
 
   const redirectBasedOnRole = (role) => {
     console.log("Redirecting based on role:", role);
+    let targetPath = '/customer/dashboard';
+    
     switch(role) {
       case 'admin':
-        navigate('/admin/dashboard', { replace: true });
+        targetPath = '/admin/dashboard';
         break;
       case 'delivery_agent':
-        navigate('/delivery/dashboard', { replace: true });
+        targetPath = '/delivery/dashboard';
         break;
       case 'customer':
       default:
-        navigate('/customer/dashboard', { replace: true });
+        targetPath = '/customer/dashboard';
         break;
     }
+    
+    console.log("Login page redirecting to:", targetPath);
+    // Use setTimeout to ensure state updates are processed
+    setTimeout(() => {
+      navigate(targetPath, { replace: true });
+    }, 100);
   };
 
   const validateForm = () => {

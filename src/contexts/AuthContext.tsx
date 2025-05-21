@@ -48,73 +48,30 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const location = useLocation();
   const [error, setError] = useState<string | null>(null);
 
-  // Initialize auth state from Supabase
-  useEffect(() => {
-    console.log("AuthProvider initializing");
+  // Function to redirect based on user role
+  const redirectBasedOnRole = (role: UserRole) => {
+    console.log(`Attempting to redirect user with role: ${role}`);
     
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
-        console.log("Auth state changed:", event, !!currentSession);
-        setSession(currentSession);
-        
-        if (currentSession?.user) {
-          console.log("Session user found, fetching profile...");
-          await fetchUserProfile(currentSession.user);
-        } else {
-          console.log("No session user, clearing state");
-          setUser(null);
-          setIsLoading(false);
-        }
-      }
-    );
-
-    // Check for existing session
-    const initializeAuth = async () => {
-      try {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        console.log("Got existing session:", currentSession ? "yes" : "no");
-        setSession(currentSession);
-        
-        if (currentSession?.user) {
-          console.log("Existing session user found, fetching profile...");
-          await fetchUserProfile(currentSession.user);
-        } else {
-          console.log("No existing session, clearing state");
-          setIsLoading(false);
-        }
-      } catch (error) {
-        console.error("Error initializing auth:", error);
-        setIsLoading(false);
-      }
-    };
-
-    initializeAuth();
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // Function to generate unique user ID
-  const generateUserId = async (): Promise<string> => {
-    try {
-      const { data: latestUser, error } = await supabase
-        .from('users')
-        .select('user_id')
-        .order('user_id', { ascending: false })
-        .limit(1);
-
-      if (error) throw error;
-
-      let nextNumber = 1;
-      if (latestUser && latestUser.length > 0) {
-        const lastNumber = parseInt(latestUser[0].user_id.replace('AP', ''));
-        nextNumber = lastNumber + 1;
-      }
-
-      return `AP${nextNumber.toString().padStart(5, '0')}`;
-    } catch (error) {
-      console.error('Error generating user ID:', error);
-      throw error;
+    let path = '/customer/dashboard';
+    switch(role) {
+      case 'admin':
+        path = '/admin/dashboard';
+        break;
+      case 'delivery_agent':
+        path = '/delivery/dashboard';
+        break;
+      case 'customer':
+      default:
+        path = '/customer/dashboard';
+        break;
     }
+    
+    console.log(`Redirecting to: ${path}`);
+    
+    // Force redirect with timeout to ensure state updates are processed
+    setTimeout(() => {
+      navigate(path, { replace: true });
+    }, 100);
   };
 
   // Fetch user profile data
@@ -175,29 +132,73 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // Redirect based on user role
-  const redirectBasedOnRole = (role: UserRole) => {
-    console.log(`Attempting to redirect user with role: ${role}`);
+  // Initialize auth state from Supabase
+  useEffect(() => {
+    console.log("AuthProvider initializing");
     
-    let path = '/customer/dashboard';
-    switch(role) {
-      case 'admin':
-        path = '/admin/dashboard';
-        break;
-      case 'delivery_agent':
-        path = '/delivery/dashboard';
-        break;
-      case 'customer':
-      default:
-        path = '/customer/dashboard';
-        break;
+    // Check for existing session first
+    const initializeAuth = async () => {
+      try {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        console.log("Got existing session:", currentSession ? "yes" : "no");
+        setSession(currentSession);
+        
+        if (currentSession?.user) {
+          console.log("Existing session user found, fetching profile...");
+          await fetchUserProfile(currentSession.user);
+        } else {
+          console.log("No existing session, clearing state");
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error("Error initializing auth:", error);
+        setIsLoading(false);
+      }
+    };
+
+    // Then set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, currentSession) => {
+        console.log("Auth state changed:", event, !!currentSession);
+        setSession(currentSession);
+        
+        if (currentSession?.user) {
+          console.log("Session user found, fetching profile...");
+          await fetchUserProfile(currentSession.user);
+        } else {
+          console.log("No session user, clearing state");
+          setUser(null);
+          setIsLoading(false);
+        }
+      }
+    );
+
+    initializeAuth();
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Function to generate unique user ID
+  const generateUserId = async (): Promise<string> => {
+    try {
+      const { data: latestUser, error } = await supabase
+        .from('users')
+        .select('user_id')
+        .order('user_id', { ascending: false })
+        .limit(1);
+
+      if (error) throw error;
+
+      let nextNumber = 1;
+      if (latestUser && latestUser.length > 0) {
+        const lastNumber = parseInt(latestUser[0].user_id.replace('AP', ''));
+        nextNumber = lastNumber + 1;
+      }
+
+      return `AP${nextNumber.toString().padStart(5, '0')}`;
+    } catch (error) {
+      console.error('Error generating user ID:', error);
+      throw error;
     }
-    
-    console.log(`Redirecting to: ${path}`);
-    // Force redirect with timeout to ensure state updates are processed
-    setTimeout(() => {
-      navigate(path, { replace: true });
-    }, 100);
   };
 
   // Login function
@@ -237,27 +238,33 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       if (profileError) {
         console.error('Error fetching user profile after login:', profileError);
-      } else if (profile) {
-        console.log("Profile fetched during login:", profile);
-        
-        const userData: User = {
-          id: profile.id,
-          name: profile.name,
-          email: profile.email,
-          role: profile.role as UserRole,
-          phone: profile.phone,
-          location: profile.location,
-          profile_pic: profile.profile_pic,
-          profile_completed: profile.profile_completed,
-          created_at: profile.created_at,
-          address: profile.address,
-          user_id: profile.user_id
-        };
-        
-        setUser(userData);
-        console.log("Manually triggering redirect after login for role:", userData.role);
-        redirectBasedOnRole(userData.role);
+        throw profileError;
       }
+
+      if (!profile) {
+        console.error('No profile found for user after login:', data.user.id);
+        throw new Error('User profile not found after login');
+      }
+        
+      console.log("Profile fetched during login:", profile);
+        
+      const userData: User = {
+        id: profile.id,
+        name: profile.name,
+        email: profile.email,
+        role: profile.role as UserRole,
+        phone: profile.phone,
+        location: profile.location,
+        profile_pic: profile.profile_pic,
+        profile_completed: profile.profile_completed,
+        created_at: profile.created_at,
+        address: profile.address,
+        user_id: profile.user_id
+      };
+        
+      setUser(userData);
+      console.log("Manually triggering redirect after login for role:", userData.role);
+      redirectBasedOnRole(userData.role);
 
       return;
     } catch (error) {

@@ -30,18 +30,27 @@ const Register = () => {
   }, [isAuthenticated, user, loading, navigate]);
 
   const redirectBasedOnRole = (role) => {
+    console.log("Register page redirecting based on role:", role);
+    let targetPath = '/customer/dashboard';
+    
     switch(role) {
       case 'admin':
-        navigate('/admin/dashboard', { replace: true });
+        targetPath = '/admin/dashboard';
         break;
       case 'delivery_agent':
-        navigate('/delivery/dashboard', { replace: true });
+        targetPath = '/delivery/dashboard';
         break;
       case 'customer':
       default:
-        navigate('/customer/dashboard', { replace: true });
+        targetPath = '/customer/dashboard';
         break;
     }
+    
+    console.log("Redirecting to:", targetPath);
+    // Use setTimeout to ensure state updates are processed
+    setTimeout(() => {
+      navigate(targetPath, { replace: true });
+    }, 100);
   };
 
   const validateForm = () => {
