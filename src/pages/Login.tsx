@@ -63,6 +63,7 @@ export default function Login() {
     try {
       console.log("Attempting login...");
       await login(email, password);
+      // Don't redirect here - let the useEffect handle it
       console.log("Login successful, redirection will be handled by useEffect");
     } catch (error) {
       console.error('Login error:', error);

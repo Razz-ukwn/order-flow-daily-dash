@@ -77,6 +77,7 @@ const Register = () => {
       
       console.log("Attempting registration...");
       await register(email, password, name);
+      // Don't redirect here - let the useEffect handle it
       console.log("Registration successful, redirection will be handled by useEffect");
     } catch (error) {
       console.error('Registration error:', error);
