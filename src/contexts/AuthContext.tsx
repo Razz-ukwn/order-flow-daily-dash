@@ -20,7 +20,7 @@ export interface User {
   profile_completed: boolean;
   created_at: string;
   address?: string;
-  user_id: string; // Added to match the interface
+  user_id: string;
 }
 
 // Auth context type
@@ -160,8 +160,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Handle redirections if on auth pages
       const currentPath = location.pathname;
       console.log("Current path:", currentPath, "User role:", userData.role);
+      
+      // Explicitly check for auth pages and redirect
       if (currentPath === '/login' || currentPath === '/register' || currentPath === '/') {
-        console.log("User is on auth page, redirecting to dashboard");
+        console.log("User is on auth page, redirecting to dashboard based on role:", userData.role);
         redirectBasedOnRole(userData.role);
       }
     } catch (error) {
@@ -192,7 +194,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
     
     console.log(`Redirecting to: ${path}`);
-    navigate(path, { replace: true });
+    // Force redirect with timeout to ensure state updates are processed
+    setTimeout(() => {
+      navigate(path, { replace: true });
+    }, 100);
   };
 
   // Login function
@@ -223,7 +228,37 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         description: "Welcome back!"
       });
 
-      // Let the auth state change handler handle the profile fetch and redirection
+      // Fetch user profile immediately after login to ensure we have the role
+      const { data: profile, error: profileError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', data.user.id)
+        .single();
+
+      if (profileError) {
+        console.error('Error fetching user profile after login:', profileError);
+      } else if (profile) {
+        console.log("Profile fetched during login:", profile);
+        
+        const userData: User = {
+          id: profile.id,
+          name: profile.name,
+          email: profile.email,
+          role: profile.role as UserRole,
+          phone: profile.phone,
+          location: profile.location,
+          profile_pic: profile.profile_pic,
+          profile_completed: profile.profile_completed,
+          created_at: profile.created_at,
+          address: profile.address,
+          user_id: profile.user_id
+        };
+        
+        setUser(userData);
+        console.log("Manually triggering redirect after login for role:", userData.role);
+        redirectBasedOnRole(userData.role);
+      }
+
       return;
     } catch (error) {
       console.error('Login error:', error);
