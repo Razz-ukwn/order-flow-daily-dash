@@ -104,6 +104,7 @@ export type Database = {
           created_at: string | null
           delivery_address: string | null
           id: string
+          notes: string | null
           payment_method: string
           payment_status: string
           status: string
@@ -115,6 +116,7 @@ export type Database = {
           created_at?: string | null
           delivery_address?: string | null
           id?: string
+          notes?: string | null
           payment_method: string
           payment_status: string
           status: string
@@ -126,6 +128,7 @@ export type Database = {
           created_at?: string | null
           delivery_address?: string | null
           id?: string
+          notes?: string | null
           payment_method?: string
           payment_status?: string
           status?: string
@@ -186,6 +189,7 @@ export type Database = {
       }
       products: {
         Row: {
+          category: string | null
           created_at: string | null
           description: string | null
           id: string
@@ -193,9 +197,13 @@ export type Database = {
           is_available: boolean | null
           name: string
           price: number
+          stock_quantity: number | null
+          tags: string[] | null
+          track_inventory: boolean | null
           updated_at: string | null
         }
         Insert: {
+          category?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
@@ -203,9 +211,13 @@ export type Database = {
           is_available?: boolean | null
           name: string
           price: number
+          stock_quantity?: number | null
+          tags?: string[] | null
+          track_inventory?: boolean | null
           updated_at?: string | null
         }
         Update: {
+          category?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
@@ -213,6 +225,9 @@ export type Database = {
           is_available?: boolean | null
           name?: string
           price?: number
+          stock_quantity?: number | null
+          tags?: string[] | null
+          track_inventory?: boolean | null
           updated_at?: string | null
         }
         Relationships: []
@@ -247,6 +262,57 @@ export type Database = {
           phone?: string | null
           role?: string | null
           route_id?: string | null
+        }
+        Relationships: []
+      }
+      settings: {
+        Row: {
+          contactemail: string
+          contactphone: string
+          created_at: string | null
+          deliveryfee: number
+          deliveryradius: number
+          enabledeliverytracking: boolean
+          enableordernotifications: boolean
+          enablesms: boolean
+          freedeliverythreshold: number
+          id: number
+          minorderamount: number
+          storedescription: string
+          storename: string
+          updated_at: string | null
+        }
+        Insert: {
+          contactemail?: string
+          contactphone?: string
+          created_at?: string | null
+          deliveryfee?: number
+          deliveryradius?: number
+          enabledeliverytracking?: boolean
+          enableordernotifications?: boolean
+          enablesms?: boolean
+          freedeliverythreshold?: number
+          id?: number
+          minorderamount?: number
+          storedescription?: string
+          storename?: string
+          updated_at?: string | null
+        }
+        Update: {
+          contactemail?: string
+          contactphone?: string
+          created_at?: string | null
+          deliveryfee?: number
+          deliveryradius?: number
+          enabledeliverytracking?: boolean
+          enableordernotifications?: boolean
+          enablesms?: boolean
+          freedeliverythreshold?: number
+          id?: number
+          minorderamount?: number
+          storedescription?: string
+          storename?: string
+          updated_at?: string | null
         }
         Relationships: []
       }

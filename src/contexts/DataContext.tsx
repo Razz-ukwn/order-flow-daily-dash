@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth, User } from './AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -168,6 +169,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const orderData: Order[] = (data || []).map(order => ({
         ...order,
         customer_id: order.user_id, // Map user_id to customer_id for compatibility
+        payment_method: order.payment_method as PaymentMethod,
         notes: order.notes || "",
         status: order.status as OrderStatus,
         payment_status: order.payment_status as PaymentStatus,
@@ -273,6 +275,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const newOrder: Order = {
         ...order,
         customer_id: order.user_id,
+        payment_method: order.payment_method as PaymentMethod,
+        payment_status: order.payment_status as PaymentStatus,
+        status: order.status as OrderStatus,
         items: orderData.items.map(item => ({
           ...item,
           order_id: order.id,

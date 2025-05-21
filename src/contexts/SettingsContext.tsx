@@ -49,32 +49,32 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const loadSettings = async () => {
     try {
-      // Check if settings table exists first
-      const { error: tableCheckError } = await supabase
-        .from('settings')
-        .select('id')
-        .limit(1);
-      
-      if (tableCheckError) {
-        console.error('Error loading settings:', tableCheckError);
-        setIsLoading(false);
-        return;
-      }
-      
+      // Check if settings table exists and fetch settings
       const { data, error } = await supabase
         .from('settings')
         .select('*')
-        .maybeSingle();
-
+        .eq('id', 1)
+        .single();
+      
       if (error) {
         console.error('Error loading settings:', error);
         return;
       }
 
       if (data) {
+        // Map database column names to our interface properties
         setSettings({
-          ...defaultSettings,
-          ...data,
+          storeName: data.storeName || defaultSettings.storeName,
+          storeDescription: data.storeDescription || defaultSettings.storeDescription,
+          contactEmail: data.contactEmail || defaultSettings.contactEmail,
+          contactPhone: data.contactPhone || defaultSettings.contactPhone,
+          enableOrderNotifications: data.enableOrderNotifications ?? defaultSettings.enableOrderNotifications,
+          enableSMS: data.enableSMS ?? defaultSettings.enableSMS,
+          deliveryRadius: data.deliveryRadius || defaultSettings.deliveryRadius,
+          minOrderAmount: data.minOrderAmount || defaultSettings.minOrderAmount,
+          deliveryFee: data.deliveryFee || defaultSettings.deliveryFee,
+          freeDeliveryThreshold: data.freeDeliveryThreshold || defaultSettings.freeDeliveryThreshold,
+          enableDeliveryTracking: data.enableDeliveryTracking ?? defaultSettings.enableDeliveryTracking,
         });
       }
     } catch (error) {
@@ -88,12 +88,12 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       const { error } = await supabase
         .from('settings')
-        .upsert({
-          id: 1, // We'll use a single row for settings
-          ...newSettings,
-        });
+        .update(newSettings)
+        .eq('id', 1);
 
       if (error) {
+        console.error('Error updating settings:', error);
+        toast.error('Failed to update settings');
         throw error;
       }
 
@@ -101,8 +101,11 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         ...prev,
         ...newSettings,
       }));
+      
+      toast.success('Settings updated successfully');
     } catch (error) {
       console.error('Error updating settings:', error);
+      toast.error('Failed to update settings');
       throw error;
     }
   };

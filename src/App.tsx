@@ -44,14 +44,14 @@ const ProtectedRoute = ({
   children: React.ReactNode;
   allowedRoles: UserRole[];
 }) => {
-  const { isAuthenticated, user, loading } = useAuth();
+  const { isAuthenticated, user, isLoading } = useAuth();
   
   console.log("ProtectedRoute - Current user:", user);
   console.log("ProtectedRoute - Allowed roles:", allowedRoles);
   console.log("ProtectedRoute - Is authenticated:", isAuthenticated);
-  console.log("ProtectedRoute - Is loading:", loading);
+  console.log("ProtectedRoute - Is loading:", isLoading);
   
-  if (loading) {
+  if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
   
