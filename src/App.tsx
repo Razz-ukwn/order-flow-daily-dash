@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -7,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth, UserRole } from "./contexts/AuthContext";
 import { DataProvider } from "./contexts/DataContext";
+import { SettingsProvider } from "./contexts/SettingsContext";
 
 // Create a new QueryClient instance
 const queryClient = new QueryClient();
@@ -45,15 +45,23 @@ const ProtectedRoute = ({
 }) => {
   const { isAuthenticated, user, isLoading } = useAuth();
   
+  console.log("ProtectedRoute - Current user:", user);
+  console.log("ProtectedRoute - Allowed roles:", allowedRoles);
+  console.log("ProtectedRoute - Is authenticated:", isAuthenticated);
+  console.log("ProtectedRoute - Is loading:", isLoading);
+  
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
   
   if (!isAuthenticated) {
+    console.log("ProtectedRoute - User not authenticated, redirecting to login");
     return <Navigate to="/login" />;
   }
   
   if (user && !allowedRoles.includes(user.role)) {
+    console.log("ProtectedRoute - User role not allowed:", user.role);
+    console.log("ProtectedRoute - Redirecting based on role");
     // Redirect based on role
     switch(user.role) {
       case 'admin':
@@ -61,12 +69,13 @@ const ProtectedRoute = ({
       case 'delivery_agent':
         return <Navigate to="/delivery/dashboard" />;
       case 'customer':
-        return <Navigate to="/dashboard" />;
+        return <Navigate to="/customer/dashboard" />;
       default:
         return <Navigate to="/login" />;
     }
   }
   
+  console.log("ProtectedRoute - Access granted");
   return <>{children}</>;
 };
 
@@ -77,7 +86,7 @@ const AppRoutes = () => (
     <Route path="/register" element={<Register />} />
     
     {/* Customer routes */}
-    <Route path="/" element={
+    <Route path="/customer" element={
       <ProtectedRoute allowedRoles={['customer']}>
         <CustomerLayout />
       </ProtectedRoute>
@@ -129,9 +138,11 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
-            <DataProvider>
-              <AppRoutes />
-            </DataProvider>
+            <SettingsProvider>
+              <DataProvider>
+                <AppRoutes />
+              </DataProvider>
+            </SettingsProvider>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>

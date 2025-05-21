@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   Card, 
@@ -25,6 +24,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { useSettings } from '@/contexts/SettingsContext';
 
 // Define form schemas
 const generalSettingsSchema = z.object({
@@ -55,17 +55,18 @@ const deliverySettingsSchema = z.object({
 const SettingsPage = () => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('general');
+  const { settings, updateSettings, isLoading } = useSettings();
 
   // Setup general settings form
   const generalForm = useForm<z.infer<typeof generalSettingsSchema>>({
     resolver: zodResolver(generalSettingsSchema),
     defaultValues: {
-      storeName: 'Daily Orders',
-      storeDescription: 'Fresh groceries delivered to your doorstep daily.',
-      contactEmail: 'contact@dailyorders.com',
-      contactPhone: '123-456-7890',
-      enableOrderNotifications: true,
-      enableSMS: false,
+      storeName: settings.storeName,
+      storeDescription: settings.storeDescription,
+      contactEmail: settings.contactEmail,
+      contactPhone: settings.contactPhone,
+      enableOrderNotifications: settings.enableOrderNotifications,
+      enableSMS: settings.enableSMS,
     },
   });
 
@@ -73,29 +74,64 @@ const SettingsPage = () => {
   const deliveryForm = useForm<z.infer<typeof deliverySettingsSchema>>({
     resolver: zodResolver(deliverySettingsSchema),
     defaultValues: {
-      deliveryRadius: '10',
-      minOrderAmount: '10',
-      deliveryFee: '2.99',
-      freeDeliveryThreshold: '40',
-      enableDeliveryTracking: true,
+      deliveryRadius: settings.deliveryRadius.toString(),
+      minOrderAmount: settings.minOrderAmount.toString(),
+      deliveryFee: settings.deliveryFee.toString(),
+      freeDeliveryThreshold: settings.freeDeliveryThreshold.toString(),
+      enableDeliveryTracking: settings.enableDeliveryTracking,
     },
   });
 
-  const onGeneralSubmit = (values: z.infer<typeof generalSettingsSchema>) => {
-    toast({
-      title: 'General settings updated',
-      description: 'Your general settings have been saved successfully.',
-    });
-    console.log(values);
+  const onGeneralSubmit = async (values: z.infer<typeof generalSettingsSchema>) => {
+    try {
+      await updateSettings({
+        storeName: values.storeName,
+        storeDescription: values.storeDescription,
+        contactEmail: values.contactEmail,
+        contactPhone: values.contactPhone,
+        enableOrderNotifications: values.enableOrderNotifications,
+        enableSMS: values.enableSMS,
+      });
+
+      toast({
+        title: 'General settings updated',
+        description: 'Your general settings have been saved successfully.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update general settings. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
-  const onDeliverySubmit = (values: z.infer<typeof deliverySettingsSchema>) => {
-    toast({
-      title: 'Delivery settings updated',
-      description: 'Your delivery settings have been saved successfully.',
-    });
-    console.log(values);
+  const onDeliverySubmit = async (values: z.infer<typeof deliverySettingsSchema>) => {
+    try {
+      await updateSettings({
+        deliveryRadius: Number(values.deliveryRadius),
+        minOrderAmount: Number(values.minOrderAmount),
+        deliveryFee: Number(values.deliveryFee),
+        freeDeliveryThreshold: Number(values.freeDeliveryThreshold),
+        enableDeliveryTracking: values.enableDeliveryTracking,
+      });
+
+      toast({
+        title: 'Delivery settings updated',
+        description: 'Your delivery settings have been saved successfully.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update delivery settings. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
+
+  if (isLoading) {
+    return <div>Loading settings...</div>;
+  }
 
   return (
     <div className="space-y-6">

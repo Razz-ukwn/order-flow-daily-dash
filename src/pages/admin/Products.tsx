@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useData } from '@/contexts/DataContext';
 import { 
@@ -16,6 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { Search, ShoppingCart, Plus, Check, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import AddProductForm from '@/components/admin/AddProductForm';
+import EditProductForm from '@/components/admin/EditProductForm';
 import {
   Dialog,
   DialogContent,
@@ -26,10 +26,11 @@ import {
 } from '@/components/ui/dialog';
 
 const ProductsPage = () => {
-  const { products } = useData();
+  const { products, deleteProduct, updateProduct } = useData();
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredProducts, setFilteredProducts] = useState(products);
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -42,34 +43,50 @@ const ProductsPage = () => {
       const results = products.filter(
         product => 
           product.name.toLowerCase().includes(term) ||
-          product.description.toLowerCase().includes(term)
+          product.description?.toLowerCase().includes(term)
       );
       setFilteredProducts(results);
     }
   };
 
-  const toggleAvailability = (productId: string, currentStatus: boolean) => {
-    // Toggle availability would be implemented with real API call
-    toast({
-      title: `Product ${currentStatus ? "disabled" : "enabled"}`,
-      description: `Product has been ${currentStatus ? "disabled" : "enabled"} successfully.`,
-    });
+  const toggleAvailability = async (productId: string, currentStatus: boolean) => {
+    try {
+      await updateProduct(productId, { is_available: !currentStatus });
+      toast({
+        title: `Product ${currentStatus ? "disabled" : "enabled"}`,
+        description: `Product has been ${currentStatus ? "disabled" : "enabled"} successfully.`,
+      });
+    } catch (error) {
+      console.error('Error toggling availability:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update product availability",
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleDeleteProduct = (productId: string) => {
-    toast({
-      title: "Product deleted",
-      description: "The product has been removed successfully.",
-    });
-    // In a real app, we would call an API to delete the product
+  const handleDeleteProduct = async (productId: string) => {
+    try {
+      console.log('Attempting to delete product:', productId);
+      await deleteProduct(productId);
+      console.log('Product deleted successfully');
+      toast({
+        title: "Product deleted",
+        description: "The product has been removed successfully.",
+      });
+    } catch (error) {
+      console.error('Error in handleDeleteProduct:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete the product. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleEditProduct = (productId: string) => {
-    toast({
-      title: "Edit product",
-      description: "Edit functionality would open the product form here.",
-    });
-    // In a real app, we would open the edit form with the product data
+    setEditingProductId(productId);
   };
 
   const formatPrice = (price: number) => {
@@ -209,6 +226,22 @@ const ProductsPage = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Edit Product Dialog */}
+      <Dialog open={!!editingProductId} onOpenChange={(open) => !open && setEditingProductId(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          {editingProductId && (
+            <EditProductForm
+              productId={editingProductId}
+              onClose={() => setEditingProductId(null)}
+              onSuccess={() => {
+                refreshProductsList();
+                setEditingProductId(null);
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

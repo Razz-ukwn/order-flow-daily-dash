@@ -1,16 +1,21 @@
-
 import React, { useState } from 'react';
-import { useData } from '@/contexts/DataContext';
+import { useData, OrderItem, OrderStatus, PaymentStatus, PaymentMethod } from '@/contexts/DataContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { ShoppingCart, Plus, Minus } from 'lucide-react';
+import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 const ProductsPage = () => {
-  const { products } = useData();
+  const { products, addOrder } = useData();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [cart, setCart] = useState<{[key: string]: {product: any, quantity: number}}>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Filter products based on search term
   const filteredProducts = products.filter(product => 
@@ -69,6 +74,54 @@ const ProductsPage = () => {
     (count, item) => count + item.quantity, 
     0
   );
+  
+  const handleCheckout = async () => {
+    if (!user) {
+      toast.error('Please login to place an order');
+      return;
+    }
+
+    if (Object.keys(cart).length === 0) {
+      toast.error('Your cart is empty');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const selectedItems = Object.entries(cart).map(([productId, item]) => ({
+        product_id: productId,
+        quantity: item.quantity,
+        price_at_order: item.product.price,
+        product: item.product,
+        id: '', // Will be set by database
+        order_id: '', // Will be set by database
+        created_at: new Date().toISOString()
+      } as OrderItem));
+
+      const order = await addOrder({
+        customer_id: user.id,
+        items: selectedItems,
+        total_amount: cartTotal,
+        payment_method: 'cash' as PaymentMethod, // Default to cash for now
+        payment_status: 'pending' as PaymentStatus,
+        status: 'pending' as OrderStatus,
+        delivery_address: user.address || '',
+        notes: ''
+      });
+
+      if (order) {
+        toast.success('Order placed successfully!');
+        setCart({});
+        navigate('/customer/orders');
+      }
+    } catch (error) {
+      console.error('Error creating order:', error);
+      toast.error('Failed to place order. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
   
   return (
     <div className="space-y-6">
@@ -217,9 +270,10 @@ const ProductsPage = () => {
               <CardFooter>
                 <Button 
                   className="w-full bg-purple-400 hover:bg-purple-500"
-                  disabled={cartItemCount === 0}
+                  disabled={cartItemCount === 0 || isSubmitting}
+                  onClick={handleCheckout}
                 >
-                  Checkout ({cartItemCount})
+                  {isSubmitting ? 'Processing...' : `Checkout (${cartItemCount})`}
                 </Button>
               </CardFooter>
             </Card>

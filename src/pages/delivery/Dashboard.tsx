@@ -1,23 +1,50 @@
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useData } from '@/contexts/DataContext';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Package, CheckCircle, Clock } from 'lucide-react';
+import { Package, CheckCircle, Clock, Truck, DollarSign, CreditCard, Wallet } from 'lucide-react';
 import EarningsCard from '@/components/delivery/EarningsCard';
+import { supabase } from '@/integrations/supabase/client';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
+interface StockSummary {
+  product_id: string;
+  product_name: string;
+  assigned_quantity: number;
+  delivered_quantity: number;
+  remaining_quantity: number;
+  price: number;
+}
+
+interface PaymentSummary {
+  cash: number;
+  upi: number;
+  remaining: number;
+  total: number;
+}
 
 const DeliveryDashboard = () => {
   const { user } = useAuth();
   const { getAssignedOrders, orders } = useData();
-  
+  const [assignedOrders, setAssignedOrders] = useState<number>(0);
+  const [deliveredOrders, setDeliveredOrders] = useState<number>(0);
+  const [remainingOrders, setRemainingOrders] = useState<number>(0);
+  const [stockSummary, setStockSummary] = useState<StockSummary[]>([]);
+  const [paymentSummary, setPaymentSummary] = useState<PaymentSummary>({
+    cash: 0,
+    upi: 0,
+    remaining: 0,
+    total: 0
+  });
+
   if (!user) return null;
   
-  const assignedOrders = getAssignedOrders(user.id);
+  const assignedOrdersData = getAssignedOrders(user.id);
   
   // Count delivered orders by this agent
-  const deliveredOrders = orders.filter(
+  const deliveredOrdersData = orders.filter(
     order => order.delivery?.agent_id === user.id && order.delivery?.status === 'delivered'
   );
   
@@ -25,10 +52,89 @@ const DeliveryDashboard = () => {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   
-  const todayDeliveries = assignedOrders.filter(order => 
+  const todayDeliveries = assignedOrdersData.filter(order => 
     new Date(order.created_at) >= todayStart
   );
-  
+
+  useEffect(() => {
+    // Fetch assigned stock
+    const fetchAssignedStock = async () => {
+      const { data: stockData, error: stockError } = await supabase
+        .from('assigned_stock')
+        .select(`
+          *,
+          product:products(id, name, price)
+        `)
+        .eq('agent_id', user.id)
+        .eq('status', 'assigned');
+
+      if (stockError) {
+        console.error('Error fetching assigned stock:', stockError);
+        return;
+      }
+
+      // Calculate stock summary
+      const summary = stockData.reduce((acc: { [key: string]: StockSummary }, item: any) => {
+        const productId = item.product_id;
+        if (!acc[productId]) {
+          acc[productId] = {
+            product_id: productId,
+            product_name: item.product.name,
+            assigned_quantity: 0,
+            delivered_quantity: 0,
+            remaining_quantity: 0,
+            price: item.product.price
+          };
+        }
+        acc[productId].assigned_quantity += item.quantity;
+        acc[productId].remaining_quantity += item.quantity;
+        return acc;
+      }, {});
+
+      setStockSummary(Object.values(summary));
+    };
+
+    // Calculate order statistics
+    const calculateOrderStats = () => {
+      const agentOrders = orders.filter(order => order.assigned_agent_id === user.id);
+      const assigned = agentOrders.length;
+      const delivered = agentOrders.filter(order => order.status === 'delivered').length;
+      const remaining = assigned - delivered;
+
+      setAssignedOrders(assigned);
+      setDeliveredOrders(delivered);
+      setRemainingOrders(remaining);
+    };
+
+    // Calculate payment summary
+    const calculatePaymentSummary = () => {
+      const agentOrders = orders.filter(order => 
+        order.assigned_agent_id === user.id && 
+        order.status === 'delivered'
+      );
+
+      const summary = agentOrders.reduce((acc: PaymentSummary, order) => {
+        if (order.payment_status === 'paid') {
+          if (order.payment_method === 'cash') {
+            acc.cash += order.total_amount;
+          } else if (order.payment_method === 'upi') {
+            acc.upi += order.total_amount;
+          }
+        } else {
+          acc.remaining += order.total_amount;
+        }
+        acc.total += order.total_amount;
+        return acc;
+      }, { cash: 0, upi: 0, remaining: 0, total: 0 });
+
+      setPaymentSummary(summary);
+    };
+
+    fetchAssignedStock();
+    calculateOrderStats();
+    calculatePaymentSummary();
+  }, [user, orders]);
+
   return (
     <div className="space-y-6">
       <div className="mb-6">
@@ -58,7 +164,7 @@ const DeliveryDashboard = () => {
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{deliveredOrders.length}</div>
+            <div className="text-2xl font-bold">{deliveredOrdersData.length}</div>
             <p className="text-xs text-muted-foreground">
               All time deliveries
             </p>
@@ -72,9 +178,9 @@ const DeliveryDashboard = () => {
       {/* Pending Deliveries */}
       <div>
         <h2 className="text-lg font-medium mb-4">Today's Pending Deliveries</h2>
-        {assignedOrders.length > 0 ? (
+        {assignedOrdersData.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {assignedOrders.map(order => (
+            {assignedOrdersData.map(order => (
               <Card key={order.id} className="card-hover">
                 <CardHeader>
                   <CardTitle className="text-md">Delivery #{order.id}</CardTitle>
@@ -137,6 +243,110 @@ const DeliveryDashboard = () => {
           </Button>
         </div>
       </div>
+
+      {/* Order Statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Assigned Orders</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{assignedOrders}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Delivered Orders</CardTitle>
+            <Truck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{deliveredOrders}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Remaining Orders</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{remainingOrders}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Stock Summary */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Stock Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Product</TableHead>
+                <TableHead className="text-right">Assigned</TableHead>
+                <TableHead className="text-right">Delivered</TableHead>
+                <TableHead className="text-right">Remaining</TableHead>
+                <TableHead className="text-right">Price</TableHead>
+                <TableHead className="text-right">Total Value</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {stockSummary.map((item) => (
+                <TableRow key={item.product_id}>
+                  <TableCell>{item.product_name}</TableCell>
+                  <TableCell className="text-right">{item.assigned_quantity}</TableCell>
+                  <TableCell className="text-right">{item.delivered_quantity}</TableCell>
+                  <TableCell className="text-right">{item.remaining_quantity}</TableCell>
+                  <TableCell className="text-right">${item.price.toFixed(2)}</TableCell>
+                  <TableCell className="text-right">
+                    ${(item.price * item.assigned_quantity).toFixed(2)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Payment Summary */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Payment Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Wallet className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Cash Collection</span>
+                </div>
+                <span className="text-sm font-bold">${paymentSummary.cash.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <CreditCard className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">UPI Collection</span>
+                </div>
+                <span className="text-sm font-bold">${paymentSummary.upi.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Remaining Amount</span>
+                </div>
+                <span className="text-sm font-bold">${paymentSummary.remaining.toFixed(2)}</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+              <span className="text-lg font-medium">Total Amount</span>
+              <span className="text-2xl font-bold">${paymentSummary.total.toFixed(2)}</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

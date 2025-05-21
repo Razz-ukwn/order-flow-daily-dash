@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,7 +23,7 @@ const CustomerDashboard = () => {
         </div>
         <div className="mt-4 md:mt-0">
           <Button asChild className="bg-purple-400 hover:bg-purple-500">
-            <Link to="/products">
+            <Link to="/customer/products">
               <ShoppingCart className="mr-2 h-4 w-4" />
               Order Now
             </Link>
@@ -135,7 +134,7 @@ const CustomerDashboard = () => {
               <div className="text-center">
                 <p className="text-muted-foreground mb-4">You don't have any orders yet</p>
                 <Button asChild className="bg-purple-400 hover:bg-purple-500">
-                  <Link to="/products">Place Your First Order</Link>
+                  <Link to="/customer/products">Place Your First Order</Link>
                 </Button>
               </div>
             </CardContent>

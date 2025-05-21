@@ -1,7 +1,7 @@
-
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSettings } from '@/contexts/SettingsContext';
 import { Button } from '@/components/ui/button';
 import { 
   Home, 
@@ -17,6 +17,7 @@ import {
 
 const AdminLayout = () => {
   const { user, logout } = useAuth();
+  const { settings } = useSettings();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -42,7 +43,7 @@ const AdminLayout = () => {
       {/* Header */}
       <header className="bg-purple-400 text-white shadow-md">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-          <Link to="/admin/dashboard" className="text-xl font-bold">Daily Orders</Link>
+          <Link to="/admin/dashboard" className="text-xl font-bold">{settings.storeName}</Link>
           
           <div className="flex items-center">
             <div className="hidden md:flex items-center space-x-2">
@@ -114,7 +115,7 @@ const AdminLayout = () => {
       )}
       
       {/* Main content */}
-      <div className="flex flex-1">
+      <div className="flex-1 flex">
         {/* Sidebar - Desktop only */}
         <aside className="hidden md:flex flex-col w-64 bg-white border-r">
           <div className="p-4">

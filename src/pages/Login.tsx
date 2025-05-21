@@ -5,22 +5,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { AlertCircle } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
-const Login = () => {
+export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const { login, isLoading, isAuthenticated, user } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { login, user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
-  // Handle redirection when auth state changes
+  // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated && user) {
-      console.log("Auth state changed in Login component:", isAuthenticated, user);
-      
-      // Redirect based on user role
+      console.log("User is authenticated, redirecting from login page");
       switch(user.role) {
         case 'admin':
           navigate('/admin/dashboard', { replace: true });
@@ -29,119 +27,104 @@ const Login = () => {
           navigate('/delivery/dashboard', { replace: true });
           break;
         case 'customer':
-        default:
-          navigate('/dashboard', { replace: true });
+          navigate('/customer/dashboard', { replace: true });
           break;
       }
     }
   }, [isAuthenticated, user, navigate]);
 
+  const validateForm = () => {
+    if (!email.trim()) {
+      toast.error('Please enter your email');
+      return false;
+    }
+    if (!password.trim()) {
+      toast.error('Please enter your password');
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    if (isSubmitting) return;
     
-    if (!email.trim()) {
-      setError('Please enter your email');
-      return;
-    }
-    
-    if (!password.trim()) {
-      setError('Please enter your password');
-      return;
-    }
-    
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
     try {
-      console.log("Attempting login with:", email);
+      console.log("Attempting login...");
       await login(email, password);
+      console.log("Login successful, redirection will be handled by AuthContext");
     } catch (error) {
-      console.error("Login error:", error);
-      setError('Failed to login. Please check your credentials and try again.');
+      console.error('Login error:', error);
+      // Error is already handled by AuthContext
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-purple-100 p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-purple-700">Daily Orders</h1>
-          <p className="text-purple-500 mt-2">Log in to your account</p>
-        </div>
-        
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle className="text-xl font-semibold">Login</CardTitle>
-            <CardDescription>
-              Enter your credentials to access your account
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {error && (
-              <Alert variant="destructive" className="mb-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Password</Label>
-                  <Link to="/forgot-password" className="text-sm text-purple-500 hover:text-purple-700">
-                    Forgot password?
-                  </Link>
-                </div>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-              <Button 
-                type="submit" 
-                className="w-full bg-purple-400 hover:bg-purple-500" 
-                disabled={isLoading}
-              >
-                {isLoading ? 'Logging in...' : 'Log in'}
-              </Button>
-            </form>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold text-center">Welcome back</CardTitle>
+          <CardDescription className="text-center">
+            Enter your credentials to access your account
+          </CardDescription>
+        </CardHeader>
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="name@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={isSubmitting}
+                autoComplete="email"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                disabled={isSubmitting}
+                autoComplete="current-password"
+              />
+            </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
-            <div className="text-sm text-center text-gray-500">
-              For demo purposes, you can log in with:
-              <div className="mt-2 grid grid-cols-1 gap-2 text-xs">
-                <div className="p-2 bg-gray-50 rounded">
-                  <div><strong>Admin:</strong> admin@example.com</div>
-                  <div><strong>Delivery Agent:</strong> agent@example.com</div>
-                  <div><strong>Customer:</strong> customer@example.com</div>
-                  <div className="mt-1">Password for all: <strong>password</strong></div>
-                </div>
-              </div>
-            </div>
-            <div className="text-center text-sm">
+            <Button 
+              type="submit" 
+              className="w-full"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                'Sign in'
+              )}
+            </Button>
+            <p className="text-sm text-center text-gray-600">
               Don't have an account?{' '}
-              <Link to="/register" className="text-purple-500 hover:text-purple-700">
-                Register
+              <Link to="/register" className="text-blue-600 hover:text-blue-500">
+                Sign up
               </Link>
-            </div>
+            </p>
           </CardFooter>
-        </Card>
-      </div>
+        </form>
+      </Card>
     </div>
   );
-};
-
-export default Login;
+}

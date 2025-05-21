@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData, Order, OrderStatus } from '@/contexts/DataContext';
@@ -6,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
@@ -19,9 +18,18 @@ import {
   Check,
   X
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { format } from 'date-fns';
+
+interface DeliveryAgent {
+  id: string;
+  full_name: string;
+}
 
 const OrdersPage = () => {
-  const { orders, updateOrderStatus, assignDelivery } = useData();
+  const { orders, updateOrderStatus, assignDelivery, refreshData } = useData();
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -36,6 +44,15 @@ const OrdersPage = () => {
   const [showPaid, setShowPaid] = useState(true);
   const [showPending, setShowPending] = useState(true);
   const [selectedDeliveryAgent, setSelectedDeliveryAgent] = useState('');
+  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+  const [deliveryAgents, setDeliveryAgents] = useState<DeliveryAgent[]>([]);
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    date: '',
+    route: '',
+    status: '',
+    paymentStatus: ''
+  });
   
   // Apply filters whenever orders, search or filters change
   useEffect(() => {
@@ -131,12 +148,107 @@ const OrdersPage = () => {
     });
   };
   
-  // List of delivery agents (in a real app, would come from the users with delivery_agent role)
-  const deliveryAgents = [
-    { id: '2', name: 'John Delivery' },
-    { id: '5', name: 'Maria Express' },
-    { id: '8', name: 'Delivery Pro' }
-  ];
+  // Fetch delivery agents
+  useEffect(() => {
+    const fetchDeliveryAgents = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .eq('role', 'delivery_agent');
+
+      if (error) {
+        console.error('Error fetching delivery agents:', error);
+        return;
+      }
+
+      setDeliveryAgents(data || []);
+    };
+
+    fetchDeliveryAgents();
+  }, []);
+
+  // Filter orders based on selected filters
+  const filteredOrdersBasedOnFilters = orders.filter(order => {
+    if (filters.date && !order.order_date.includes(filters.date)) return false;
+    if (filters.route && order.route !== filters.route) return false;
+    if (filters.status && order.status !== filters.status) return false;
+    if (filters.paymentStatus && order.payment_status !== filters.paymentStatus) return false;
+    return true;
+  });
+
+  // Handle order selection
+  const handleOrderSelect = (orderId: string) => {
+    setSelectedOrders(prev => 
+      prev.includes(orderId)
+        ? prev.filter(id => id !== orderId)
+        : [...prev, orderId]
+    );
+  };
+
+  // Handle select all
+  const handleSelectAll = () => {
+    setSelectedOrders(prev =>
+      prev.length === filteredOrdersBasedOnFilters.length
+        ? []
+        : filteredOrdersBasedOnFilters.map(order => order.id)
+    );
+  };
+
+  // Handle order assignment
+  const handleAssignOrders = async () => {
+    if (!selectedDeliveryAgent || selectedOrders.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please select an agent and at least one order",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      // Update orders with assigned agent
+      const { error: ordersError } = await supabase
+        .from('orders')
+        .update({ 
+          assigned_agent_id: selectedDeliveryAgent,
+          status: 'assigned'
+        })
+        .in('id', selectedOrders);
+
+      if (ordersError) throw ordersError;
+
+      // Create delivery records
+      const deliveries = selectedOrders.map(orderId => ({
+        order_id: orderId,
+        agent_id: selectedDeliveryAgent,
+        status: 'pending',
+        assigned_at: new Date().toISOString()
+      }));
+
+      const { error: deliveriesError } = await supabase
+        .from('deliveries')
+        .insert(deliveries);
+
+      if (deliveriesError) throw deliveriesError;
+
+      toast({
+        title: "Success",
+        description: "Orders assigned successfully"
+      });
+
+      setIsAssignDialogOpen(false);
+      setSelectedOrders([]);
+      setSelectedDeliveryAgent('');
+      refreshData();
+    } catch (error) {
+      console.error('Error assigning orders:', error);
+      toast({
+        title: "Error",
+        description: "Failed to assign orders",
+        variant: "destructive"
+      });
+    }
+  };
   
   return (
     <div className="space-y-6">
@@ -162,7 +274,7 @@ const OrdersPage = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-4">
             <div className="flex items-center space-x-2">
               <Search className="h-4 w-4 text-muted-foreground" />
               <Input 
@@ -227,8 +339,8 @@ const OrdersPage = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredOrders.length > 0 ? (
-              filteredOrders.map((order) => (
+            {filteredOrdersBasedOnFilters.length > 0 ? (
+              filteredOrdersBasedOnFilters.map((order) => (
                 <TableRow key={order.id} className="border-b hover:bg-muted/30">
                   <TableCell className="font-medium">#{order.id}</TableCell>
                   <TableCell>{new Date(order.order_date).toLocaleDateString()}</TableCell>
@@ -507,7 +619,7 @@ const OrdersPage = () => {
                     >
                       <option value="">-- Select Agent --</option>
                       {deliveryAgents.map(agent => (
-                        <option key={agent.id} value={agent.id}>{agent.name}</option>
+                        <option key={agent.id} value={agent.id}>{agent.full_name}</option>
                       ))}
                     </select>
                   </div>
@@ -528,6 +640,47 @@ const OrdersPage = () => {
               </DialogFooter>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+      
+      {/* Assign Orders Dialog */}
+      <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
+        <DialogTrigger asChild>
+          <Button
+            disabled={selectedOrders.length === 0}
+            onClick={() => setIsAssignDialogOpen(true)}
+          >
+            Assign Orders ({selectedOrders.length})
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Orders to Delivery Agent</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Select
+              value={selectedDeliveryAgent}
+              onValueChange={setSelectedDeliveryAgent}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select delivery agent" />
+              </SelectTrigger>
+              <SelectContent>
+                {deliveryAgents.map(agent => (
+                  <SelectItem key={agent.id} value={agent.id}>
+                    {agent.full_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              onClick={handleAssignOrders}
+              disabled={!selectedDeliveryAgent}
+              className="w-full"
+            >
+              Assign Selected Orders
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
