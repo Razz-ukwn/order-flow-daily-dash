@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +20,7 @@ export interface User {
   profile_completed: boolean;
   created_at: string;
   address?: string;
+  user_id: string;
 }
 
 // Auth context type
@@ -27,7 +29,7 @@ interface AuthContextType {
   loading: boolean;
   error: string | null;
   isAuthenticated: boolean;
-  isLoading: boolean; // Added this property to match usage in ProtectedRoute
+  isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;

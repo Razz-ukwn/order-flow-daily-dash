@@ -23,9 +23,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { format } from 'date-fns';
 
+// Define the DeliveryAgent interface
 interface DeliveryAgent {
   id: string;
-  full_name: string;
+  full_name?: string;
+  name: string;
 }
 
 const OrdersPage = () => {
@@ -151,17 +153,28 @@ const OrdersPage = () => {
   // Fetch delivery agents
   useEffect(() => {
     const fetchDeliveryAgents = async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .eq('role', 'delivery_agent');
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('id, name, role')
+          .eq('role', 'delivery_agent');
 
-      if (error) {
-        console.error('Error fetching delivery agents:', error);
-        return;
+        if (error) {
+          console.error('Error fetching delivery agents:', error);
+          return;
+        }
+
+        // Convert the data to DeliveryAgent type
+        const deliveryAgentsData: DeliveryAgent[] = (data || []).map(agent => ({
+          id: agent.id,
+          name: agent.name,
+          full_name: agent.name // Use name as full_name since full_name doesn't exist yet
+        }));
+
+        setDeliveryAgents(deliveryAgentsData);
+      } catch (error) {
+        console.error('Error in fetchDeliveryAgents:', error);
       }
-
-      setDeliveryAgents(data || []);
     };
 
     fetchDeliveryAgents();

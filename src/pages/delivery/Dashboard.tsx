@@ -25,6 +25,21 @@ interface PaymentSummary {
   total: number;
 }
 
+interface AssignedStock {
+  id: string;
+  agent_id: string;
+  product_id: string;
+  quantity: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  product: {
+    id: string;
+    name: string;
+    price: number;
+  };
+}
+
 const DeliveryDashboard = () => {
   const { user } = useAuth();
   const { getAssignedOrders, orders } = useData();
@@ -39,13 +54,104 @@ const DeliveryDashboard = () => {
     total: 0
   });
 
+  useEffect(() => {
+    // Fetch assigned stock
+    if (user) {
+      const fetchAssignedStock = async () => {
+        try {
+          const { data: stockData, error: stockError } = await supabase
+            .from('assigned_stock')
+            .select(`
+              *,
+              product:products(id, name, price)
+            `)
+            .eq('agent_id', user.id)
+            .eq('status', 'assigned');
+    
+          if (stockError) {
+            console.error('Error fetching assigned stock:', stockError);
+            return;
+          }
+    
+          // Calculate stock summary
+          const summary = (stockData || []).reduce((acc: { [key: string]: StockSummary }, item: AssignedStock) => {
+            const productId = item.product_id;
+            if (!acc[productId]) {
+              acc[productId] = {
+                product_id: productId,
+                product_name: item.product.name,
+                assigned_quantity: 0,
+                delivered_quantity: 0,
+                remaining_quantity: 0,
+                price: item.product.price
+              };
+            }
+            acc[productId].assigned_quantity += item.quantity;
+            acc[productId].remaining_quantity += item.quantity;
+            return acc;
+          }, {});
+    
+          setStockSummary(Object.values(summary));
+        } catch (error) {
+          console.error('Error in fetchAssignedStock:', error);
+        }
+      };
+  
+      // Calculate order statistics
+      const calculateOrderStats = () => {
+        // Filter orders assigned to this agent
+        const agentOrders = orders.filter(order => 
+          (order.delivery?.agent_id === user.id) || 
+          (order.assigned_agent_id === user.id)
+        );
+        
+        const assigned = agentOrders.length;
+        const delivered = agentOrders.filter(order => order.status === 'delivered').length;
+        const remaining = assigned - delivered;
+    
+        setAssignedOrders(assigned);
+        setDeliveredOrders(delivered);
+        setRemainingOrders(remaining);
+      };
+  
+      // Calculate payment summary
+      const calculatePaymentSummary = () => {
+        const agentOrders = orders.filter(order => 
+          ((order.delivery?.agent_id === user.id) || (order.assigned_agent_id === user.id)) && 
+          order.status === 'delivered'
+        );
+    
+        const summary = agentOrders.reduce((acc: PaymentSummary, order) => {
+          if (order.payment_status === 'paid') {
+            if (order.payment_method === 'cash') {
+              acc.cash += order.total_amount;
+            } else if (order.payment_method === 'upi') {
+              acc.upi += order.total_amount;
+            }
+          } else {
+            acc.remaining += order.total_amount;
+          }
+          acc.total += order.total_amount;
+          return acc;
+        }, { cash: 0, upi: 0, remaining: 0, total: 0 });
+    
+        setPaymentSummary(summary);
+      };
+  
+      fetchAssignedStock();
+      calculateOrderStats();
+      calculatePaymentSummary();
+    }
+  }, [user, orders]);
+
   if (!user) return null;
   
   const assignedOrdersData = getAssignedOrders(user.id);
   
   // Count delivered orders by this agent
   const deliveredOrdersData = orders.filter(
-    order => order.delivery?.agent_id === user.id && order.delivery?.status === 'delivered'
+    order => (order.delivery?.agent_id === user.id || order.assigned_agent_id === user.id) && 
+             (order.delivery?.status === 'delivered' || order.status === 'delivered')
   );
   
   // Get today's pending deliveries
@@ -55,85 +161,6 @@ const DeliveryDashboard = () => {
   const todayDeliveries = assignedOrdersData.filter(order => 
     new Date(order.created_at) >= todayStart
   );
-
-  useEffect(() => {
-    // Fetch assigned stock
-    const fetchAssignedStock = async () => {
-      const { data: stockData, error: stockError } = await supabase
-        .from('assigned_stock')
-        .select(`
-          *,
-          product:products(id, name, price)
-        `)
-        .eq('agent_id', user.id)
-        .eq('status', 'assigned');
-
-      if (stockError) {
-        console.error('Error fetching assigned stock:', stockError);
-        return;
-      }
-
-      // Calculate stock summary
-      const summary = stockData.reduce((acc: { [key: string]: StockSummary }, item: any) => {
-        const productId = item.product_id;
-        if (!acc[productId]) {
-          acc[productId] = {
-            product_id: productId,
-            product_name: item.product.name,
-            assigned_quantity: 0,
-            delivered_quantity: 0,
-            remaining_quantity: 0,
-            price: item.product.price
-          };
-        }
-        acc[productId].assigned_quantity += item.quantity;
-        acc[productId].remaining_quantity += item.quantity;
-        return acc;
-      }, {});
-
-      setStockSummary(Object.values(summary));
-    };
-
-    // Calculate order statistics
-    const calculateOrderStats = () => {
-      const agentOrders = orders.filter(order => order.assigned_agent_id === user.id);
-      const assigned = agentOrders.length;
-      const delivered = agentOrders.filter(order => order.status === 'delivered').length;
-      const remaining = assigned - delivered;
-
-      setAssignedOrders(assigned);
-      setDeliveredOrders(delivered);
-      setRemainingOrders(remaining);
-    };
-
-    // Calculate payment summary
-    const calculatePaymentSummary = () => {
-      const agentOrders = orders.filter(order => 
-        order.assigned_agent_id === user.id && 
-        order.status === 'delivered'
-      );
-
-      const summary = agentOrders.reduce((acc: PaymentSummary, order) => {
-        if (order.payment_status === 'paid') {
-          if (order.payment_method === 'cash') {
-            acc.cash += order.total_amount;
-          } else if (order.payment_method === 'upi') {
-            acc.upi += order.total_amount;
-          }
-        } else {
-          acc.remaining += order.total_amount;
-        }
-        acc.total += order.total_amount;
-        return acc;
-      }, { cash: 0, upi: 0, remaining: 0, total: 0 });
-
-      setPaymentSummary(summary);
-    };
-
-    fetchAssignedStock();
-    calculateOrderStats();
-    calculatePaymentSummary();
-  }, [user, orders]);
 
   return (
     <div className="space-y-6">

@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth, User } from './AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -48,6 +47,9 @@ export interface Delivery {
   agent?: User;
   created_at: string;
   updated_at: string;
+  delivery_agent_id?: string;
+  actual_delivery_time?: string;
+  estimated_delivery_time?: string;
 }
 
 // Order type - adding order_date property for compatibility
@@ -67,6 +69,7 @@ export interface Order {
   order_date?: string; // Added for compatibility, maps to created_at
   route?: string; // Added for compatibility in admin pages
   delivery?: Delivery;
+  assigned_agent_id?: string; // Add this field to fix errors
 }
 
 // Data context type
@@ -166,6 +169,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Calculate the order_date from created_at for compatibility
         const orderDate = order.created_at ? new Date(order.created_at).toISOString().split('T')[0] : '';
         
+        // Check if this order has a delivery assigned and extract the agent ID
+        const assigned_agent_id = order.delivery?.[0]?.delivery_agent_id || '';
+        
         return {
           ...order,
           customer_id: order.user_id, // Map user_id to customer_id for compatibility
@@ -175,6 +181,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           payment_status: order.payment_status as PaymentStatus,
           order_date: orderDate, // Add order_date property
           route: '', // Add empty route property
+          assigned_agent_id: assigned_agent_id, // Add assigned_agent_id field
           items: (order.items || []).map(item => ({
             ...item,
             price_at_order: item.price_at_time || 0,

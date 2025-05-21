@@ -1,224 +1,253 @@
-import React, { useState } from 'react';
-import { useData, OrderItem, OrderStatus, PaymentStatus, PaymentMethod } from '@/contexts/DataContext';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { useData, Product, OrderItem, OrderStatus, PaymentMethod, PaymentStatus } from '@/contexts/DataContext';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 
-interface Product {
-  id: string;
-  name: string;
-  description: string | null;
-  price: number;
-  image_url: string | null;
-  is_available: boolean;
-  created_at: string;
-  category: string | null;
-  stock_quantity: number | null;
-  track_inventory: boolean;
-  tags: string[];
-  updated_at: string;
+interface ShippingInfo {
+  address: string;
+  notes: string;
 }
 
-const Products = () => {
-  const { products, addOrder } = useData();
+const ProductsPage = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const [selectedProducts, setSelectedProducts] = useState<{ [key: string]: number }>({});
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
+  const { products, getProductById, addOrder } = useData();
+  const [cartItems, setCartItems] = useState<Product[]>([]);
+  const [shippingInfo, setShippingInfo] = useState<ShippingInfo>({ address: '', notes: '' });
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
 
-  const handleQuantityChange = (productId: string, quantity: number) => {
+  useEffect(() => {
+    // Load cart items from local storage on component mount
+    const storedCart = localStorage.getItem('cart');
+    if (storedCart) {
+      setCartItems(JSON.parse(storedCart));
+    }
+  }, []);
+
+  useEffect(() => {
+    // Save cart items to local storage whenever cart changes
+    localStorage.setItem('cart', JSON.stringify(cartItems));
+  }, [cartItems]);
+
+  const addToCart = (product: Product) => {
+    setCartItems([...cartItems, product]);
+    toast.success(`${product.name} added to cart!`);
+  };
+
+  const removeFromCart = (productId: string) => {
+    const updatedCart = cartItems.filter(item => item.id !== productId);
+    setCartItems(updatedCart);
+    toast.success('Item removed from cart.');
+  };
+
+  const clearCart = () => {
+    setCartItems([]);
+    toast.success('Cart cleared.');
+  };
+
+  const updateQuantity = (productId: string, quantity: number) => {
     if (quantity < 0) return;
-    setSelectedProducts(prev => ({
-      ...prev,
-      [productId]: quantity
-    }));
+  
+    const product = getProductById(productId);
+    if (!product) {
+      toast.error('Product not found');
+      return;
+    }
+  
+    if (quantity > product.stock_quantity) {
+      toast.error('Quantity exceeds available stock');
+      return;
+    }
+  
+    setCartItems(prevCartItems =>
+      prevCartItems.map(item =>
+        item.id === productId ? { ...item, quantity: quantity } : item
+      )
+    );
   };
 
-  const getTotalAmount = () => {
-    return Object.entries(selectedProducts).reduce((total, [productId, quantity]) => {
-      const product = products.find(p => p.id === productId);
-      return total + (product?.price || 0) * quantity;
-    }, 0);
+  const subtotal = cartItems.reduce((acc, item) => acc + item.price, 0);
+  const deliveryFee = 5;
+
+  const handleShippingChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setShippingInfo({ ...shippingInfo, [e.target.name]: e.target.value });
   };
 
-  const handleOrderSubmit = async () => {
+  const handlePaymentMethodChange = (method: PaymentMethod) => {
+    setPaymentMethod(method);
+  };
+
+  // Update the handleCheckout method to include user_id
+  const handleCheckout = async () => {
     if (!user) {
-      toast.error('Please login to place an order');
+      toast.error('You must be logged in to checkout.');
+      navigate('/login');
       return;
     }
 
-    const selectedItems = Object.entries(selectedProducts)
-      .filter(([_, quantity]) => quantity > 0)
-      .map(([productId, quantity]) => {
-        const product = products.find(p => p.id === productId);
-        if (!product) {
-          throw new Error(`Product with ID ${productId} not found`);
-        }
-        return {
-          product_id: productId,
-          quantity,
-          price_at_order: product.price,
-          product,
-          id: '', // Will be set by database
-          order_id: '', // Will be set by database
-          created_at: new Date().toISOString()
-        } as OrderItem;
-      });
+    if (cartItems.length === 0) {
+      toast.error('Your cart is empty.');
+      return;
+    }
 
-    if (selectedItems.length === 0) {
-      toast.error('Please select at least one product');
+    if (!shippingInfo.address.trim()) {
+      toast.error('Please enter a shipping address.');
       return;
     }
 
     setIsSubmitting(true);
-
     try {
-      // Create the order
-      const order = await addOrder({
+      const newOrder = await addOrder({
         customer_id: user.id,
-        items: selectedItems,
-        total_amount: getTotalAmount(),
-        payment_method: paymentMethod,
-        payment_status: 'pending' as PaymentStatus,
-        status: 'pending' as OrderStatus,
-        delivery_address: user.address || '',
-        notes: ''
+        user_id: user.id, // Add this field to fix type error
+        items: cartItems.map(item => ({
+          product_id: item.id,
+          quantity: item.quantity,
+          price_at_order: item.price
+        })),
+        total_amount: subtotal + deliveryFee,
+        payment_method: paymentMethod || 'cash',
+        payment_status: 'pending',
+        status: 'pending',
+        delivery_address: user?.address || shippingInfo.address,
+        notes: shippingInfo.notes || ""
       });
 
-      if (order) {
+      if (newOrder) {
         toast.success('Order placed successfully!');
-        setSelectedProducts({});
-        setPaymentMethod('cash');
-        // Navigate to orders page after successful order placement
+        clearCart();
+        setShippingInfo({ address: '', notes: '' });
+        setPaymentMethod(null);
         navigate('/customer/orders');
+      } else {
+        toast.error('Failed to place order.');
       }
     } catch (error) {
-      console.error('Error creating order:', error);
-      toast.error('Failed to place order. Please try again.');
+      console.error('Checkout error:', error);
+      toast.error('An error occurred during checkout.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight">Available Products</h1>
-        <p className="text-muted-foreground">Select products to place your order.</p>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {products.map((product) => (
+    <div className="container mx-auto py-8">
+      <h1 className="text-2xl font-bold mb-4">Products</h1>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {products.map(product => (
           <Card key={product.id}>
             <CardHeader>
               <CardTitle>{product.name}</CardTitle>
               <CardDescription>{product.description}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Price:</span>
-                  <span className="text-lg font-bold">${product.price.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Available:</span>
-                  <span className="text-sm">{product.stock_quantity || 0}</span>
-                </div>
-              </div>
+              <p>Price: ${product.price}</p>
+              <Button onClick={() => addToCart(product)}>Add to Cart</Button>
             </CardContent>
-            <CardFooter>
-              <div className="flex items-center space-x-2 w-full">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleQuantityChange(product.id, (selectedProducts[product.id] || 0) - 1)}
-                >
-                  -
-                </Button>
-                <Input
-                  type="number"
-                  min="0"
-                  value={selectedProducts[product.id] || 0}
-                  onChange={(e) => handleQuantityChange(product.id, parseInt(e.target.value) || 0)}
-                  className="w-16 text-center"
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleQuantityChange(product.id, (selectedProducts[product.id] || 0) + 1)}
-                >
-                  +
-                </Button>
-              </div>
-            </CardFooter>
           </Card>
         ))}
       </div>
 
-      {Object.values(selectedProducts).some(qty => qty > 0) && (
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>Order Summary</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              {Object.entries(selectedProducts)
-                .filter(([_, quantity]) => quantity > 0)
-                .map(([productId, quantity]) => {
-                  const product = products.find(p => p.id === productId);
-                  return (
-                    <div key={productId} className="flex justify-between items-center">
-                      <span>{product?.name} x {quantity}</span>
-                      <span>${((product?.price || 0) * quantity).toFixed(2)}</span>
-                    </div>
-                  );
-                })}
-              <div className="border-t pt-2 mt-2">
-                <div className="flex justify-between items-center font-bold">
-                  <span>Total</span>
-                  <span>${getTotalAmount().toFixed(2)}</span>
-                </div>
-              </div>
-            </div>
+      <h2 className="text-xl font-bold mt-8 mb-4">Shopping Cart</h2>
+      {cartItems.length === 0 ? (
+        <p>Your cart is empty.</p>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {cartItems.map(item => (
+              <Card key={item.id}>
+                <CardHeader>
+                  <CardTitle>{item.name}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p>Price: ${item.price}</p>
+                  <div className="flex items-center space-x-2">
+                    <Label htmlFor={`quantity-${item.id}`}>Quantity:</Label>
+                    <Input
+                      type="number"
+                      id={`quantity-${item.id}`}
+                      defaultValue={1}
+                      min="1"
+                      onChange={(e) => updateQuantity(item.id, parseInt(e.target.value))}
+                      className="w-20"
+                    />
+                  </div>
+                  <Button onClick={() => removeFromCart(item.id)}>Remove</Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <div className="mt-4">
+            <h3 className="text-lg font-bold">Subtotal: ${subtotal}</h3>
+            <h3 className="text-lg font-bold">Delivery Fee: ${deliveryFee}</h3>
+            <h3 className="text-lg font-bold">Total: ${subtotal + deliveryFee}</h3>
+          </div>
 
+          <div className="mt-4">
+            <h3 className="text-lg font-bold">Shipping Information</h3>
             <div className="space-y-2">
-              <Label>Payment Method</Label>
-              <RadioGroup
-                value={paymentMethod}
-                onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}
-                className="flex space-x-4"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="cash" id="cash" />
-                  <Label htmlFor="cash">Cash</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="upi" id="upi" />
-                  <Label htmlFor="upi">UPI</Label>
-                </div>
-              </RadioGroup>
+              <Label htmlFor="address">Address</Label>
+              <Input
+                type="text"
+                id="address"
+                name="address"
+                value={shippingInfo.address}
+                onChange={handleShippingChange}
+                placeholder="123 Main St"
+              />
             </div>
-          </CardContent>
-          <CardFooter>
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes</Label>
+              <Input
+                type="textarea"
+                id="notes"
+                name="notes"
+                value={shippingInfo.notes}
+                onChange={handleShippingChange}
+                placeholder="Delivery instructions"
+              />
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <h3 className="text-lg font-bold">Payment Method</h3>
+            <div className="flex space-x-4">
+              <Button variant={paymentMethod === 'cash' ? 'default' : 'outline'} onClick={() => handlePaymentMethodChange('cash')}>
+                Cash on Delivery
+              </Button>
+              <Button variant={paymentMethod === 'upi' ? 'default' : 'outline'} onClick={() => handlePaymentMethodChange('upi')}>
+                UPI
+              </Button>
+            </div>
+          </div>
+
+          <div className="mt-4">
             <Button 
-              className="w-full" 
-              onClick={handleOrderSubmit}
+              onClick={handleCheckout} 
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Placing Order...' : 'Place Order'}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Placing Order...
+                </>
+              ) : (
+                'Checkout'
+              )}
             </Button>
-          </CardFooter>
-        </Card>
+            <Button variant="secondary" onClick={clearCart} className="ml-2">Clear Cart</Button>
+          </div>
+        </>
       )}
     </div>
   );
 };
 
-export default Products; 
+export default ProductsPage;

@@ -9,6 +9,51 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      assigned_stock: {
+        Row: {
+          agent_id: string | null
+          created_at: string | null
+          id: string
+          product_id: string | null
+          quantity: number
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          agent_id?: string | null
+          created_at?: string | null
+          id?: string
+          product_id?: string | null
+          quantity?: number
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          agent_id?: string | null
+          created_at?: string | null
+          id?: string
+          product_id?: string | null
+          quantity?: number
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assigned_stock_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assigned_stock_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deliveries: {
         Row: {
           actual_delivery_time: string | null
@@ -16,6 +61,7 @@ export type Database = {
           delivery_agent_id: string | null
           estimated_delivery_time: string | null
           id: string
+          notes: string | null
           order_id: string | null
           status: string
           updated_at: string | null
@@ -26,6 +72,7 @@ export type Database = {
           delivery_agent_id?: string | null
           estimated_delivery_time?: string | null
           id?: string
+          notes?: string | null
           order_id?: string | null
           status: string
           updated_at?: string | null
@@ -36,6 +83,7 @@ export type Database = {
           delivery_agent_id?: string | null
           estimated_delivery_time?: string | null
           id?: string
+          notes?: string | null
           order_id?: string | null
           status?: string
           updated_at?: string | null
@@ -236,6 +284,7 @@ export type Database = {
         Row: {
           address: string | null
           allow_orders: boolean | null
+          full_name: string | null
           id: string
           is_active: boolean | null
           name: string | null
@@ -246,6 +295,7 @@ export type Database = {
         Insert: {
           address?: string | null
           allow_orders?: boolean | null
+          full_name?: string | null
           id: string
           is_active?: boolean | null
           name?: string | null
@@ -256,6 +306,7 @@ export type Database = {
         Update: {
           address?: string | null
           allow_orders?: boolean | null
+          full_name?: string | null
           id?: string
           is_active?: boolean | null
           name?: string | null
@@ -318,6 +369,7 @@ export type Database = {
       }
       users: {
         Row: {
+          address: string | null
           created_at: string | null
           email: string
           id: string
@@ -330,6 +382,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          address?: string | null
           created_at?: string | null
           email: string
           id: string
@@ -342,6 +395,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          address?: string | null
           created_at?: string | null
           email?: string
           id?: string
