@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from "@/integrations/supabase/client";
@@ -150,7 +149,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         profile_pic: profile.profile_pic,
         profile_completed: profile.profile_completed,
         created_at: profile.created_at,
-        address: profile.address
+        address: profile.address,
+        user_id: profile.user_id
       };
 
       console.log("Setting user data:", userData);
