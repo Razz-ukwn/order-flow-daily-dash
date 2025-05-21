@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from "@/integrations/supabase/client";
@@ -19,7 +20,7 @@ export interface User {
   profile_completed: boolean;
   created_at: string;
   address?: string;
-  user_id: string;
+  user_id: string; // Added to match the interface
 }
 
 // Auth context type
@@ -222,7 +223,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         description: "Welcome back!"
       });
 
-      return; // Let the auth state change handler handle redirection
+      // Let the auth state change handler handle the profile fetch and redirection
+      return;
     } catch (error) {
       console.error('Login error:', error);
       setError(error instanceof Error ? error.message : 'An error occurred during login');
@@ -342,7 +344,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         loading: isLoading, 
         error,
         isAuthenticated: !!user,
-        isLoading, // Make sure isLoading is passed to the context
+        isLoading, 
         login, 
         register, 
         logout, 

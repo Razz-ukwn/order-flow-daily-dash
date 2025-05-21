@@ -27,6 +27,7 @@ export default function Login() {
   }, [isAuthenticated, user, loading, navigate]);
 
   const redirectBasedOnRole = (role) => {
+    console.log("Redirecting based on role:", role);
     switch(role) {
       case 'admin':
         navigate('/admin/dashboard', { replace: true });
@@ -61,10 +62,10 @@ export default function Login() {
 
     setIsSubmitting(true);
     try {
-      console.log("Attempting login...");
+      console.log("Attempting login with:", email);
       await login(email, password);
-      // Don't redirect here - let the useEffect handle it
-      console.log("Login successful, redirection will be handled by useEffect");
+      // Login is handled by AuthContext, redirection will be handled by useEffect
+      console.log("Login successful in component, waiting for redirect");
     } catch (error) {
       console.error('Login error:', error);
       // Error is already handled by AuthContext
