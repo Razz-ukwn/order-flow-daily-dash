@@ -12,11 +12,11 @@ export interface Product {
   image_url: string | null;
   is_available: boolean;
   created_at: string;
+  updated_at: string;
   category: string | null;
   stock_quantity: number | null;
   track_inventory: boolean;
   tags: string[];
-  updated_at: string;
 }
 
 // Order status and payment status types
@@ -39,6 +39,7 @@ export interface OrderItem {
 export interface Order {
   id: string;
   customer_id: string;
+  user_id: string; // For backward compatibility
   items: OrderItem[];
   total_amount: number;
   payment_method: PaymentMethod;
@@ -130,11 +131,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setProducts((data || []).map(product => ({
+      
+      const productData: Product[] = (data || []).map(product => ({
         ...product,
-        track_inventory: product.track_inventory ?? false,
-        tags: product.tags ?? []
-      })));
+        category: product.category || null,
+        stock_quantity: product.stock_quantity || null,
+        track_inventory: Boolean(product.track_inventory),
+        tags: Array.isArray(product.tags) ? product.tags : []
+      }));
+      
+      setProducts(productData);
     } catch (error) {
       console.error('Error fetching products:', error);
       setError('Failed to fetch products');
@@ -158,20 +164,28 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setOrders((data || []).map(order => ({
+
+      const orderData: Order[] = (data || []).map(order => ({
         ...order,
+        customer_id: order.user_id, // Map user_id to customer_id for compatibility
+        notes: order.notes || "",
         status: order.status as OrderStatus,
         payment_status: order.payment_status as PaymentStatus,
         items: (order.items || []).map(item => ({
           ...item,
-          product: {
+          price_at_order: item.price_at_time || 0,
+          product: item.product ? {
             ...item.product,
-            track_inventory: item.product.track_inventory ?? false,
-            tags: item.product.tags ?? []
-          }
+            category: item.product.category || null,
+            stock_quantity: item.product.stock_quantity || null,
+            track_inventory: Boolean(item.product.track_inventory),
+            tags: Array.isArray(item.product.tags) ? item.product.tags : []
+          } : undefined
         })),
         delivery: order.delivery?.[0]
-      })));
+      }));
+
+      setOrders(orderData);
     } catch (error) {
       console.error('Error fetching orders:', error);
       setError('Failed to fetch orders');
@@ -200,7 +214,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   // Add new order
-  const addOrder = async (orderData: Omit<Order, 'id' | 'created_at' | 'updated_at'>) => {
+  const addOrder = async (orderData: Omit<Order, 'id' | 'created_at' | 'updated_at'>): Promise<Order | null> => {
     try {
       // Get the latest order number
       const { data: latestOrder, error: orderError } = await supabase
@@ -222,7 +236,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .from('orders')
         .insert({
           id: newOrderNumber,
-          customer_id: orderData.customer_id,
+          user_id: orderData.customer_id, // Map customer_id to user_id for DB
           total_amount: orderData.total_amount,
           payment_method: orderData.payment_method,
           payment_status: orderData.payment_status,
@@ -242,7 +256,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         order_id: order.id,
         product_id: item.product_id,
         quantity: item.quantity,
-        price_at_order: item.price_at_order,
+        price_at_time: item.price_at_order, // Map price_at_order to price_at_time for DB
         created_at: new Date().toISOString()
       }));
 
@@ -256,14 +270,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await fetchOrders();
 
       // Return the complete order with items
-      return {
+      const newOrder: Order = {
         ...order,
+        customer_id: order.user_id,
         items: orderData.items.map(item => ({
           ...item,
           order_id: order.id,
           created_at: new Date().toISOString()
-        }))
+        })),
+        notes: order.notes || ""
       };
+      
+      return newOrder;
     } catch (error) {
       console.error('Error adding order:', error);
       toast.error('Failed to create order');
@@ -328,25 +346,33 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   // Add new product
-  const addProduct = async (productData: Omit<Product, 'id' | 'created_at' | 'updated_at'>) => {
+  const addProduct = async (productData: Omit<Product, 'id' | 'created_at' | 'updated_at'>): Promise<Product> => {
     try {
       const { data, error } = await supabase
         .from('products')
         .insert([{
           ...productData,
-          track_inventory: productData.track_inventory ?? false,
-          tags: productData.tags ?? []
+          category: productData.category || null,
+          stock_quantity: productData.stock_quantity || null,
+          track_inventory: Boolean(productData.track_inventory),
+          tags: Array.isArray(productData.tags) ? productData.tags : []
         }])
         .select()
         .single();
 
       if (error) throw error;
+      
       await fetchProducts();
-      return {
+      
+      const newProduct: Product = {
         ...data,
-        track_inventory: data.track_inventory ?? false,
-        tags: data.tags ?? []
+        category: data.category || null,
+        stock_quantity: data.stock_quantity || null,
+        track_inventory: Boolean(data.track_inventory),
+        tags: Array.isArray(data.tags) ? data.tags : []
       };
+      
+      return newProduct;
     } catch (error) {
       console.error('Error adding product:', error);
       toast.error('Failed to add product');

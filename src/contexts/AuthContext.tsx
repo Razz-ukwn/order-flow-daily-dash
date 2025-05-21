@@ -1,7 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
 import { toast } from 'sonner';
@@ -42,7 +41,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const { toast: uiToast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   const [error, setError] = useState<string | null>(null);
@@ -164,11 +162,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
       setUser(null);
-      toast({
-        title: "Error",
-        description: "Failed to load user profile. Please try again.",
-        variant: "destructive"
-      });
+      toast.error("Failed to load user profile. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -220,19 +214,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       console.log("Login successful, user:", data.user.id);
       
-      toast({
-        title: "Login successful",
-        description: `Welcome back!`,
+      toast.success("Login successful", {
+        description: "Welcome back!"
       });
 
       return; // Let the auth state change handler handle redirection
     } catch (error) {
       console.error('Login error:', error);
       setError(error instanceof Error ? error.message : 'An error occurred during login');
-      toast({
-        title: "Login failed",
-        description: error instanceof Error ? error.message : 'An error occurred during login',
-        variant: "destructive"
+      toast.error("Login failed", {
+        description: error instanceof Error ? error.message : 'An error occurred during login'
       });
       throw error;
     } finally {
@@ -287,19 +278,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       console.log("Registration successful, profile created");
       
-      toast({
-        title: "Registration successful",
-        description: "Your account has been created",
+      toast.success("Registration successful", {
+        description: "Your account has been created"
       });
 
       // Auth state change listener will handle the redirect
     } catch (error) {
       console.error('Registration error:', error);
       setError(error instanceof Error ? error.message : 'An error occurred during registration');
-      toast({
-        title: "Registration failed",
-        description: error instanceof Error ? error.message : 'An error occurred during registration',
-        variant: "destructive"
+      toast.error("Registration failed", {
+        description: error instanceof Error ? error.message : 'An error occurred during registration'
       });
       throw error;
     } finally {
@@ -313,17 +301,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await supabase.auth.signOut();
       setUser(null);
       setSession(null);
-      toast({
-        title: "Logged out",
-        description: "You have been successfully logged out",
+      toast.success("Logged out", {
+        description: "You have been successfully logged out"
       });
       navigate('/login', { replace: true });
     } catch (error) {
       console.error('Logout error:', error);
-      toast({
-        title: "Logout failed",
-        description: "Failed to log out",
-        variant: "destructive"
+      toast.error("Logout failed", {
+        description: "Failed to log out"
       });
     }
   };

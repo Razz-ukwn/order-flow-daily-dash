@@ -1,5 +1,7 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface Settings {
   storeName: string;
@@ -47,10 +49,22 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const loadSettings = async () => {
     try {
+      // Check if settings table exists first
+      const { error: tableCheckError } = await supabase
+        .from('settings')
+        .select('id')
+        .limit(1);
+      
+      if (tableCheckError) {
+        console.error('Error loading settings:', tableCheckError);
+        setIsLoading(false);
+        return;
+      }
+      
       const { data, error } = await supabase
         .from('settings')
         .select('*')
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error('Error loading settings:', error);
@@ -106,4 +120,4 @@ export const useSettings = () => {
     throw new Error('useSettings must be used within a SettingsProvider');
   }
   return context;
-}; 
+};

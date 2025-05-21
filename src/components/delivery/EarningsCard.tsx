@@ -19,7 +19,7 @@ const EarningsCard = ({ agentId }: EarningsProps) => {
   const todaysDeliveredOrders = orders.filter(order => 
     order.delivery?.agent_id === agentId &&
     order.delivery?.status === 'delivered' &&
-    new Date(order.order_date) >= todayStart
+    new Date(order.created_at) >= todayStart
   );
   
   // Calculate earnings by payment method
