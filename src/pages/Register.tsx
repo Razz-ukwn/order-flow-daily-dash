@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,13 +11,38 @@ import ProfileCompletionModal from '@/components/modals/ProfileCompletionModal';
 import { Loader2 } from "lucide-react";
 
 const Register = () => {
-  const { register, loading } = useAuth();
+  const { register, loading, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    console.log("Register page - Auth state:", { isAuthenticated, user, loading });
+    
+    if (!loading && isAuthenticated && user) {
+      console.log("User is authenticated, redirecting from register page to:", user.role);
+      redirectBasedOnRole(user.role);
+    }
+  }, [isAuthenticated, user, loading, navigate]);
+
+  const redirectBasedOnRole = (role) => {
+    switch(role) {
+      case 'admin':
+        navigate('/admin/dashboard', { replace: true });
+        break;
+      case 'delivery_agent':
+        navigate('/delivery/dashboard', { replace: true });
+        break;
+      case 'customer':
+      default:
+        navigate('/customer/dashboard', { replace: true });
+        break;
+    }
+  };
 
   const validateForm = () => {
     if (!name.trim()) {
@@ -44,11 +70,17 @@ const Register = () => {
 
     setIsSubmitting(true);
     try {
+      if (!validateForm()) {
+        setIsSubmitting(false);
+        return;
+      }
+      
+      console.log("Attempting registration...");
       await register(email, password, name);
-      // Note: No need to navigate here as the AuthContext will handle redirection
+      console.log("Registration successful, redirection will be handled by useEffect");
     } catch (error) {
-      // Error is already handled by AuthContext
       console.error('Registration error:', error);
+      // Error is already handled by AuthContext
     } finally {
       setIsSubmitting(false);
     }

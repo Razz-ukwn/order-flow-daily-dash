@@ -6,283 +6,288 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export interface Database {
+export type Database = {
   public: {
     Tables: {
-      profiles: {
+      deliveries: {
         Row: {
+          actual_delivery_time: string | null
+          created_at: string | null
+          delivery_agent_id: string | null
+          estimated_delivery_time: string | null
           id: string
-          created_at: string
-          updated_at: string
-          full_name: string | null
-          avatar_url: string | null
-          role: 'admin' | 'customer' | 'delivery_agent'
-          phone: string | null
-          address: string | null
+          order_id: string | null
+          status: string
+          updated_at: string | null
         }
         Insert: {
-          id: string
-          created_at?: string
-          updated_at?: string
-          full_name?: string | null
-          avatar_url?: string | null
-          role?: 'admin' | 'customer' | 'delivery_agent'
-          phone?: string | null
-          address?: string | null
+          actual_delivery_time?: string | null
+          created_at?: string | null
+          delivery_agent_id?: string | null
+          estimated_delivery_time?: string | null
+          id?: string
+          order_id?: string | null
+          status: string
+          updated_at?: string | null
         }
         Update: {
+          actual_delivery_time?: string | null
+          created_at?: string | null
+          delivery_agent_id?: string | null
+          estimated_delivery_time?: string | null
           id?: string
-          created_at?: string
-          updated_at?: string
-          full_name?: string | null
-          avatar_url?: string | null
-          role?: 'admin' | 'customer' | 'delivery_agent'
-          phone?: string | null
-          address?: string | null
+          order_id?: string | null
+          status?: string
+          updated_at?: string | null
         }
-      }
-      products: {
-        Row: {
-          id: string
-          created_at: string
-          updated_at: string
-          name: string
-          description: string | null
-          price: number
-          image_url: string | null
-          is_available: boolean
-          category: string | null
-          stock_quantity: number | null
-          track_inventory: boolean
-          tags: string[]
-        }
-        Insert: {
-          id?: string
-          created_at?: string
-          updated_at?: string
-          name: string
-          description?: string | null
-          price: number
-          image_url?: string | null
-          is_available?: boolean
-          category?: string | null
-          stock_quantity?: number | null
-          track_inventory?: boolean
-          tags?: string[]
-        }
-        Update: {
-          id?: string
-          created_at?: string
-          updated_at?: string
-          name?: string
-          description?: string | null
-          price?: number
-          image_url?: string | null
-          is_available?: boolean
-          category?: string | null
-          stock_quantity?: number | null
-          track_inventory?: boolean
-          tags?: string[]
-        }
-      }
-      orders: {
-        Row: {
-          id: string
-          created_at: string
-          updated_at: string
-          customer_id: string
-          delivery_address: string
-          order_date: string
-          delivery_date: string | null
-          total_amount: number
-          status: 'pending' | 'processing' | 'assigned' | 'delivered' | 'cancelled'
-          payment_status: 'paid' | 'pending'
-          payment_method: 'cash' | 'upi' | 'credit_card' | null
-          notes: string | null
-          route: string | null
-          assigned_agent_id: string | null
-        }
-        Insert: {
-          id?: string
-          created_at?: string
-          updated_at?: string
-          customer_id: string
-          delivery_address: string
-          order_date: string
-          delivery_date?: string | null
-          total_amount: number
-          status?: 'pending' | 'processing' | 'assigned' | 'delivered' | 'cancelled'
-          payment_status?: 'paid' | 'pending'
-          payment_method?: 'cash' | 'upi' | 'credit_card' | null
-          notes?: string | null
-          route?: string | null
-          assigned_agent_id?: string | null
-        }
-        Update: {
-          id?: string
-          created_at?: string
-          updated_at?: string
-          customer_id?: string
-          delivery_address?: string
-          order_date?: string
-          delivery_date?: string | null
-          total_amount?: number
-          status?: 'pending' | 'processing' | 'assigned' | 'delivered' | 'cancelled'
-          payment_status?: 'paid' | 'pending'
-          payment_method?: 'cash' | 'upi' | 'credit_card' | null
-          notes?: string | null
-          route?: string | null
-          assigned_agent_id?: string | null
-        }
+        Relationships: [
+          {
+            foreignKeyName: "deliveries_delivery_agent_id_fkey"
+            columns: ["delivery_agent_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deliveries_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       order_items: {
         Row: {
+          created_at: string | null
           id: string
-          created_at: string
-          order_id: string
-          product_id: string
+          order_id: string | null
+          price_at_time: number
+          product_id: string | null
           quantity: number
-          price_at_order: number
         }
         Insert: {
+          created_at?: string | null
           id?: string
-          created_at?: string
-          order_id: string
-          product_id: string
+          order_id?: string | null
+          price_at_time: number
+          product_id?: string | null
           quantity: number
-          price_at_order: number
         }
         Update: {
+          created_at?: string | null
           id?: string
-          created_at?: string
-          order_id?: string
-          product_id?: string
+          order_id?: string | null
+          price_at_time?: number
+          product_id?: string | null
           quantity?: number
-          price_at_order?: number
         }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      deliveries: {
+      orders: {
         Row: {
+          created_at: string | null
+          delivery_address: string | null
           id: string
-          created_at: string
-          updated_at: string
-          order_id: string
-          agent_id: string
-          assigned_at: string
-          delivered_at: string | null
-          status: 'pending' | 'in_progress' | 'delivered' | 'failed'
-          notes: string | null
+          payment_method: string
+          payment_status: string
+          status: string
+          total_amount: number
+          updated_at: string | null
+          user_id: string | null
         }
         Insert: {
+          created_at?: string | null
+          delivery_address?: string | null
           id?: string
-          created_at?: string
-          updated_at?: string
-          order_id: string
-          agent_id: string
-          assigned_at: string
-          delivered_at?: string | null
-          status?: 'pending' | 'in_progress' | 'delivered' | 'failed'
-          notes?: string | null
+          payment_method: string
+          payment_status: string
+          status: string
+          total_amount: number
+          updated_at?: string | null
+          user_id?: string | null
         }
         Update: {
+          created_at?: string | null
+          delivery_address?: string | null
           id?: string
-          created_at?: string
-          updated_at?: string
-          order_id?: string
-          agent_id?: string
-          assigned_at?: string
-          delivered_at?: string | null
-          status?: 'pending' | 'in_progress' | 'delivered' | 'failed'
-          notes?: string | null
+          payment_method?: string
+          payment_status?: string
+          status?: string
+          total_amount?: number
+          updated_at?: string | null
+          user_id?: string | null
         }
+        Relationships: [
+          {
+            foreignKeyName: "orders_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      settings: {
+      payments: {
         Row: {
-          id: number
-          created_at: string
-          updated_at: string
-          store_name: string
-          store_description: string | null
-          contact_email: string
-          contact_phone: string | null
-          enable_email_notifications: boolean
-          enable_sms_notifications: boolean
-          enable_delivery_notifications: boolean
-          delivery_radius: number
-          min_order_amount: number
-          delivery_fee: number
-          free_delivery_threshold: number
-          enable_delivery_tracking: boolean
-        }
-        Insert: {
-          id?: number
-          created_at?: string
-          updated_at?: string
-          store_name: string
-          store_description?: string | null
-          contact_email: string
-          contact_phone?: string | null
-          enable_email_notifications?: boolean
-          enable_sms_notifications?: boolean
-          enable_delivery_notifications?: boolean
-          delivery_radius?: number
-          min_order_amount?: number
-          delivery_fee?: number
-          free_delivery_threshold?: number
-          enable_delivery_tracking?: boolean
-        }
-        Update: {
-          id?: number
-          created_at?: string
-          updated_at?: string
-          store_name?: string
-          store_description?: string | null
-          contact_email?: string
-          contact_phone?: string | null
-          enable_email_notifications?: boolean
-          enable_sms_notifications?: boolean
-          enable_delivery_notifications?: boolean
-          delivery_radius?: number
-          min_order_amount?: number
-          delivery_fee?: number
-          free_delivery_threshold?: number
-          enable_delivery_tracking?: boolean
-        }
-      }
-      assigned_stock: {
-        Row: {
+          amount: number
+          created_at: string | null
           id: string
-          created_at: string
-          updated_at: string
-          agent_id: string
-          product_id: string
-          quantity: number
-          assigned_date: string
-          status: 'assigned' | 'delivered' | 'returned'
-          notes: string | null
+          order_id: string | null
+          payment_method: string
+          status: string
+          transaction_id: string | null
+          updated_at: string | null
         }
         Insert: {
+          amount: number
+          created_at?: string | null
           id?: string
-          created_at?: string
-          updated_at?: string
-          agent_id: string
-          product_id: string
-          quantity: number
-          assigned_date: string
-          status?: 'assigned' | 'delivered' | 'returned'
-          notes?: string | null
+          order_id?: string | null
+          payment_method: string
+          status: string
+          transaction_id?: string | null
+          updated_at?: string | null
         }
         Update: {
+          amount?: number
+          created_at?: string | null
           id?: string
-          created_at?: string
-          updated_at?: string
-          agent_id?: string
-          product_id?: string
-          quantity?: number
-          assigned_date?: string
-          status?: 'assigned' | 'delivered' | 'returned'
-          notes?: string | null
+          order_id?: string | null
+          payment_method?: string
+          status?: string
+          transaction_id?: string | null
+          updated_at?: string | null
         }
+        Relationships: [
+          {
+            foreignKeyName: "payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          image_url: string | null
+          is_available: boolean | null
+          name: string
+          price: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_available?: boolean | null
+          name: string
+          price: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          is_available?: boolean | null
+          name?: string
+          price?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          address: string | null
+          allow_orders: boolean | null
+          id: string
+          is_active: boolean | null
+          name: string | null
+          phone: string | null
+          role: string | null
+          route_id: string | null
+        }
+        Insert: {
+          address?: string | null
+          allow_orders?: boolean | null
+          id: string
+          is_active?: boolean | null
+          name?: string | null
+          phone?: string | null
+          role?: string | null
+          route_id?: string | null
+        }
+        Update: {
+          address?: string | null
+          allow_orders?: boolean | null
+          id?: string
+          is_active?: boolean | null
+          name?: string | null
+          phone?: string | null
+          role?: string | null
+          route_id?: string | null
+        }
+        Relationships: []
+      }
+      users: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          location: string | null
+          name: string
+          phone: string | null
+          profile_completed: boolean | null
+          profile_pic: string | null
+          role: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id: string
+          location?: string | null
+          name: string
+          phone?: string | null
+          profile_completed?: boolean | null
+          profile_pic?: string | null
+          role: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          location?: string | null
+          name?: string
+          phone?: string | null
+          profile_completed?: boolean | null
+          profile_pic?: string | null
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {
@@ -292,6 +297,9 @@ export interface Database {
       [_ in never]: never
     }
     Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
       [_ in never]: never
     }
   }

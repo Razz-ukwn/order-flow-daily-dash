@@ -1,8 +1,10 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
+import { toast } from 'sonner';
 
 // Define user roles
 export type UserRole = 'customer' | 'delivery_agent' | 'admin';
@@ -40,7 +42,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const { toast } = useToast();
+  const { toast: uiToast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   const [error, setError] = useState<string | null>(null);
@@ -67,19 +69,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     );
 
     // Check for existing session
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      console.log("Got existing session:", currentSession ? "yes" : "no");
-      setSession(currentSession);
-      
-      if (currentSession?.user) {
-        console.log("Existing session user found, fetching profile...");
-        fetchUserProfile(currentSession.user);
-      } else {
-        console.log("No existing session, clearing state");
+    const initializeAuth = async () => {
+      try {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        console.log("Got existing session:", currentSession ? "yes" : "no");
+        setSession(currentSession);
+        
+        if (currentSession?.user) {
+          console.log("Existing session user found, fetching profile...");
+          await fetchUserProfile(currentSession.user);
+        } else {
+          console.log("No existing session, clearing state");
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error("Error initializing auth:", error);
         setIsLoading(false);
       }
-    });
+    };
 
+    initializeAuth();
     return () => subscription.unsubscribe();
   }, []);
 
@@ -147,7 +156,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       // Handle redirections if on auth pages
       const currentPath = location.pathname;
-      console.log("Current path:", currentPath);
+      console.log("Current path:", currentPath, "User role:", userData.role);
       if (currentPath === '/login' || currentPath === '/register' || currentPath === '/') {
         console.log("User is on auth page, redirecting to dashboard");
         redirectBasedOnRole(userData.role);
@@ -209,13 +218,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         throw new Error('No user data returned');
       }
 
-      console.log("Login successful, fetching profile...");
-      await fetchUserProfile(data.user);
+      console.log("Login successful, user:", data.user.id);
       
       toast({
         title: "Login successful",
         description: `Welcome back!`,
       });
+
+      return; // Let the auth state change handler handle redirection
     } catch (error) {
       console.error('Login error:', error);
       setError(error instanceof Error ? error.message : 'An error occurred during login');
@@ -275,41 +285,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       if (profileError) throw profileError;
 
-      // Fetch the created profile
-      const { data: profile, error: fetchError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', data.user.id)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      const userData: User = {
-        id: profile.id,
-        name: profile.name,
-        email: profile.email,
-        role: profile.role as UserRole,
-        phone: profile.phone,
-        location: profile.location,
-        profile_pic: profile.profile_pic,
-        profile_completed: profile.profile_completed,
-        created_at: profile.created_at
-      };
-
-      // Update state
-      setUser(userData);
-      setSession(data.session);
+      console.log("Registration successful, profile created");
       
       toast({
         title: "Registration successful",
         description: "Your account has been created",
       });
 
-      // Handle redirections if on auth pages
-      const currentPath = location.pathname;
-      if (currentPath === '/login' || currentPath === '/register' || currentPath === '/') {
-        redirectBasedOnRole(userData.role);
-      }
+      // Auth state change listener will handle the redirect
     } catch (error) {
       console.error('Registration error:', error);
       setError(error instanceof Error ? error.message : 'An error occurred during registration');

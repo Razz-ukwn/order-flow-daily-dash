@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,26 +13,33 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { login, user, isAuthenticated } = useAuth();
+  const { login, user, isAuthenticated, loading } = useAuth();
   const navigate = useNavigate();
 
   // Redirect if already authenticated
   useEffect(() => {
-    if (isAuthenticated && user) {
-      console.log("User is authenticated, redirecting from login page");
-      switch(user.role) {
-        case 'admin':
-          navigate('/admin/dashboard', { replace: true });
-          break;
-        case 'delivery_agent':
-          navigate('/delivery/dashboard', { replace: true });
-          break;
-        case 'customer':
-          navigate('/customer/dashboard', { replace: true });
-          break;
-      }
+    console.log("Login page - Auth state:", { isAuthenticated, user, loading });
+    
+    if (!loading && isAuthenticated && user) {
+      console.log("User is authenticated, redirecting from login page to:", user.role);
+      redirectBasedOnRole(user.role);
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, user, loading, navigate]);
+
+  const redirectBasedOnRole = (role) => {
+    switch(role) {
+      case 'admin':
+        navigate('/admin/dashboard', { replace: true });
+        break;
+      case 'delivery_agent':
+        navigate('/delivery/dashboard', { replace: true });
+        break;
+      case 'customer':
+      default:
+        navigate('/customer/dashboard', { replace: true });
+        break;
+    }
+  };
 
   const validateForm = () => {
     if (!email.trim()) {
@@ -55,7 +63,7 @@ export default function Login() {
     try {
       console.log("Attempting login...");
       await login(email, password);
-      console.log("Login successful, redirection will be handled by AuthContext");
+      console.log("Login successful, redirection will be handled by useEffect");
     } catch (error) {
       console.error('Login error:', error);
       // Error is already handled by AuthContext
